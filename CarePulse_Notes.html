@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarePulse — Build Notes & Interview Prep</title>
+<style>
+:root{
+  --caramel:#F6BC7C;
+  --onyx:#151611;
+  --aliceblue:#D9EAFA;
+  --ink:#151611;
+  --mute:#7d8a96;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--aliceblue);color:var(--ink);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+code{font-family:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;font-size:.85em;background:rgba(246,188,124,.18);color:var(--onyx);padding:1px 6px;border-radius:5px}
+a{color:var(--onyx)}
+
+/* header */
+header.hero{background:var(--caramel);padding:48px 32px 36px;position:relative;overflow:hidden}
+header.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.15)}
+.eyebrow{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:#3a2f1f;font-weight:800}
+header.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-.02em;color:#151611;margin:10px 0 8px;position:relative}
+header.hero p.sub{color:#3a2f1f;font-size:1.05rem;max-width:640px;position:relative}
+.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;position:relative}
+.meta-pill{background:rgba(255,255,255,.55);border:1.5px solid rgba(21,22,17,.15);color:#151611;font-size:.78rem;font-weight:700;padding:6px 14px;border-radius:999px}
+
+/* search */
+.searchbar{position:sticky;top:0;z-index:60;background:rgba(217,234,250,.95);backdrop-filter:blur(8px);border-bottom:2px solid rgba(21,22,17,.15);padding:12px 32px}
+.search-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;background:#fff;border:2px solid rgba(21,22,17,.18);border-radius:12px;padding:9px 16px}
+.search-inner:focus-within{border-color:var(--onyx);box-shadow:0 4px 18px -8px rgba(21,22,17,.4)}
+.s-icon{color:var(--onyx);flex:none}
+#q{flex:1;border:none;outline:none;font-size:.98rem;font-family:inherit;color:var(--ink);background:none}
+#q::placeholder{color:#a8b0ba}
+.s-count{font-size:.78rem;color:var(--mute);font-weight:700;white-space:nowrap}
+.s-clear{border:none;background:rgba(21,22,17,.1);color:var(--onyx);width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:1.15rem;line-height:1;display:none;flex:none}
+.s-clear:hover{background:var(--onyx);color:#fff}
+body.searching .s-clear{display:block}
+mark{background:var(--caramel);color:#151611;padding:0 3px;border-radius:3px;font-weight:700}
+mark.current{background:var(--onyx);color:var(--caramel);box-shadow:0 0 0 2px var(--onyx)}
+.no-results{text-align:center;color:var(--mute);padding:50px;font-size:1.05rem;display:none}
+.s-hidden{display:none !important}
+
+/* layout */
+.wrap{max-width:1100px;margin:0 auto;padding:32px 32px 100px;display:grid;grid-template-columns:230px 1fr;gap:44px;align-items:start}
+nav.toc{position:sticky;top:78px;font-size:.9rem}
+nav.toc .lbl{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px;font-weight:800}
+nav.toc .lbl:first-child{margin-top:0}
+nav.toc a{display:flex;align-items:center;gap:9px;padding:6px 0;color:#5a5248;text-decoration:none;font-weight:600;font-size:.87rem}
+nav.toc a:hover{color:var(--onyx)}
+nav.toc .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--caramel)}
+
+/* session blocks */
+.session{margin-bottom:52px;scroll-margin-top:90px}
+.session-head{background:linear-gradient(120deg,var(--caramel),#fadfb4);border-radius:16px;padding:18px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.session-head h2{font-size:1.35rem;font-weight:800;color:#151611;letter-spacing:-.01em}
+.session-head .date{font-size:.8rem;font-weight:700;color:#3a2f1f;background:rgba(255,255,255,.5);padding:5px 12px;border-radius:999px}
+
+/* topic cards */
+.topic{background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:16px;border-left:5px solid var(--caramel);scroll-margin-top:90px}
+.topic.decision{border-left-color:var(--caramel)}
+.topic.error{border-left-color:var(--onyx)}
+.mini{font-size:.82rem;font-weight:800;color:var(--onyx);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px}
+.topic h3{font-size:1.08rem;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.topic .tag{font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:999px;flex:none}
+.tag.decision{background:rgba(246,188,124,.35);color:#151611}
+.tag.error{background:var(--onyx);color:var(--aliceblue)}
+.tag.concept{background:rgba(246,188,124,.2);color:#3a2f1f}
+.topic p{margin-bottom:10px;color:#2a2a28}
+.topic p:last-child{margin-bottom:0}
+.topic .why{background:var(--aliceblue);border-radius:10px;padding:12px 16px;margin-top:10px;font-size:.92rem}
+.topic .why b{color:var(--onyx)}
+
+/* interview Q */
+.iq{background:#151611;border-radius:14px;padding:20px 24px;margin:18px 0;color:#eaf2fb}
+.iq .iq-label{font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--caramel);font-weight:800;margin-bottom:8px}
+.iq p.q{font-weight:700;font-size:1rem;margin-bottom:10px}
+.iq p.a{color:#dce6ee;font-size:.92rem}
+.iq p.a:last-child{margin-bottom:0}
+
+/* code */
+.code{position:relative;background:#1c1a14;border-radius:12px;margin:12px 0;overflow:hidden}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto}
+.code code{background:none;color:#fbe8d0;padding:0;font-size:.8rem;line-height:1.6;white-space:pre}
+.copy{position:absolute;top:8px;right:8px;font-size:.66rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#fbe8d0;background:rgba(246,188,124,.25);border:1px solid rgba(246,188,124,.35);padding:4px 10px;border-radius:6px;cursor:pointer}
+.copy:hover{background:var(--caramel);color:#151611}
+.copy.done{background:#7bc47f;color:#fff;border-color:#7bc47f}
+
+/* checklist */
+.checklist{list-style:none;margin:10px 0}
+.checklist li{padding:5px 0 5px 26px;position:relative;font-size:.93rem;color:#2a2a28}
+.checklist li::before{content:"✓";position:absolute;left:0;color:var(--caramel);font-weight:800;background:#151611;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.7rem;top:6px}
+
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:.88rem}
+th{background:var(--caramel);color:#151611;text-align:left;padding:8px 12px;font-weight:800}
+td{padding:8px 12px;border-top:1px solid #f0dcc0}
+
+/* architecture diagram */
+.arch-section{background:#fff;border-radius:18px;padding:28px 30px;margin-bottom:32px;border:2px solid rgba(21,22,17,.08)}
+.arch-section h2{font-size:1.3rem;font-weight:800;margin-bottom:4px;color:#151611}
+.arch-section p.sub{color:var(--mute);font-size:.9rem;margin-bottom:20px}
+.arch-svg-wrap{overflow-x:auto;border-radius:12px;background:var(--aliceblue);padding:10px}
+.arch-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;font-size:.8rem}
+.arch-legend .li{display:flex;align-items:center;gap:6px;color:#2a2a28}
+.arch-legend .sw{width:12px;height:12px;border-radius:3px;flex:none}
+
+/* command reference */
+.cmd-cat{margin-bottom:12px;background:#fff;border-radius:12px;padding:4px 16px;border:1px solid rgba(21,22,17,.08)}
+.cmd-cat summary{list-style:none;cursor:pointer;padding:12px 0;font-size:.95rem;font-weight:800;color:var(--onyx);display:flex;align-items:center;gap:10px;user-select:none}
+.cmd-cat summary::-webkit-details-marker{display:none}
+.cmd-cat summary::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--caramel);flex:none}
+.cmd-cat summary::after{content:"▸";margin-left:auto;font-size:.85rem;color:var(--mute);transition:transform .15s}
+.cmd-cat[open] summary::after{transform:rotate(90deg)}
+.cmd-cat summary:hover{color:var(--caramel)}
+.cmd-cat .cmd-row:first-of-type{margin-top:4px}
+.cmd-cat .cmd-row:last-of-type{margin-bottom:16px}
+.cmd-cat h4{font-size:.95rem;font-weight:800;color:var(--onyx);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.cmd-cat h4::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--caramel)}
+.cmd-row{background:#fff;border-radius:10px;padding:12px 16px;margin-bottom:8px;border-left:4px solid var(--caramel)}
+.cmd-row code.cmdline{display:block;background:#1c1a14;color:#fbe8d0;padding:8px 12px;border-radius:7px;font-size:.8rem;margin-bottom:6px;overflow-x:auto;white-space:pre}
+.cmd-row p{color:#2a2a28;font-size:.87rem}
+
+footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:.85rem;border-top:2px solid rgba(21,22,17,.1);max-width:1100px;margin:0 auto}
+footer b{color:var(--onyx)}
+
+@media(max-width:820px){
+  .wrap{grid-template-columns:1fr;gap:20px}
+  nav.toc{position:static}
+}
+</style></head>
+<body>
+
+<header class="hero">
+  <p class="eyebrow">Portfolio Project · Ongoing</p>
+  <h1>CarePulse — Build Notes &amp; Interview Prep</h1>
+  <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
+  <div class="meta-row">
+    <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
+    <span class="meta-pill">Sessions: 2</span>
+    <span class="meta-pill">Phase 0: ✓ complete</span>
+    <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
+    <span class="meta-pill">Phase 2: Glue/PySpark — encounters.csv transform verified</span>
+  </div>
+</header>
+
+<div class="searchbar">
+  <div class="search-inner">
+    <svg class="s-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="q" type="search" placeholder="Search…  Enter = next match, Shift+Enter = prev  (/)" autocomplete="off" spellcheck="false">
+    <span id="count" class="s-count"></span>
+    <button id="clear" class="s-clear" title="Clear (Esc)">&times;</button>
+  </div>
+</div>
+
+<div class="wrap" style="grid-template-columns:1fr;padding-bottom:0">
+  <section class="arch-section" id="architecture">
+    <h2>Architecture — current state</h2>
+    <p class="sub">Solid teal = built and verified. Dashed grey = planned, not yet built. Diagram updates every session.</p>
+    <div class="arch-svg-wrap">
+<svg viewBox="0 0 1180 560" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:'Segoe UI',sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#F6BC7C"/>
+    </marker>
+    <marker id="arrowGrey" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#a8b0ba"/>
+    </marker>
+  </defs>
+
+  <!-- section labels -->
+  <text x="20" y="24" font-size="12" font-weight="800" fill="#7d8a96" letter-spacing="2">LOCAL MACHINE</text>
+  <text x="330" y="24" font-size="12" font-weight="800" fill="#7d8a96" letter-spacing="2">AWS — BUILT (Phase 0)</text>
+  <text x="700" y="24" font-size="12" font-weight="800" fill="#a8b0ba" letter-spacing="2">AWS — PLANNED</text>
+  <text x="960" y="24" font-size="12" font-weight="800" fill="#a8b0ba" letter-spacing="2">SNOWFLAKE + ML — PLANNED</text>
+
+  <!-- ============ LOCAL ============ -->
+  <!-- Synthea box -->
+  <rect x="20" y="50" width="150" height="90" rx="14" fill="#151611"/>
+  <circle cx="95" cy="85" r="16" fill="#F6BC7C"/>
+  <path d="M88,85 l5,6 l10,-12" stroke="#151611" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="95" y="118" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">Synthea</text>
+  <text x="95" y="132" font-size="9.5" fill="#F6BC7C" text-anchor="middle">Java · 57,538 patients</text>
+
+  <!-- CSV files -->
+  <rect x="20" y="170" width="150" height="70" rx="14" fill="#fff" stroke="#F6BC7C" stroke-width="2.5"/>
+  <rect x="70" y="188" width="20" height="26" rx="2" fill="#F6BC7C"/>
+  <rect x="94" y="188" width="20" height="26" rx="2" fill="#F6BC7C" opacity=".6"/>
+  <text x="95" y="230" font-size="12" font-weight="800" fill="#151611" text-anchor="middle">6 CSV files</text>
+  <text x="95" y="243" font-size="9" fill="#7d8a96" text-anchor="middle">~12 GB, patients→observations</text>
+
+  <line x1="95" y1="140" x2="95" y2="168" stroke="#F6BC7C" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- arrow local -> S3 -->
+  <line x1="172" y1="205" x2="325" y2="120" stroke="#F6BC7C" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="1,0"/>
+  <text x="215" y="150" font-size="9.5" fill="#151611" font-weight="700" transform="rotate(-24 215 150)">✓ aws s3 cp --recursive</text>
+
+  <!-- ============ AWS BUILT ============ -->
+  <!-- S3 raw bucket -->
+  <rect x="330" y="50" width="160" height="90" rx="14" fill="#F6BC7C"/>
+  <path d="M375,68 h30 a6,6 0 0 1 6,6 v6 h-42 v-6 a6,6 0 0 1 6,-6 z" fill="#151611"/>
+  <rect x="369" y="80" width="42" height="26" rx="4" fill="#151611"/>
+  <path d="M369,86 h42 M369,94 h42 M369,102 h42" stroke="#F6BC7C" stroke-width="1.5"/>
+  <text x="410" y="118" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">S3: carepulse-raw</text>
+  <text x="410" y="131" font-size="9" fill="#151611" text-anchor="middle">✓ 12.15 GB, 13 files loaded</text>
+
+  <!-- S3 tfstate bucket -->
+  <rect x="330" y="160" width="160" height="80" rx="14" fill="#F6BC7C"/>
+  <rect x="369" y="185" width="42" height="26" rx="4" fill="#151611"/>
+  <path d="M369,191 h42 M369,199 h42" stroke="#F6BC7C" stroke-width="1.5"/>
+  <text x="410" y="228" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">S3: carepulse-tfstate</text>
+  <text x="410" y="240" font-size="9" fill="#151611" text-anchor="middle">versioned, remote state</text>
+
+  <!-- DynamoDB lock table -->
+  <rect x="330" y="260" width="160" height="80" rx="14" fill="#F6BC7C"/>
+  <ellipse cx="410" cy="285" rx="20" ry="7" fill="#151611"/>
+  <path d="M390,285 v18 a20,7 0 0 0 40,0 v-18" fill="#151611"/>
+  <ellipse cx="410" cy="303" rx="20" ry="7" fill="none" stroke="#F6BC7C" stroke-width="1.5"/>
+  <text x="410" y="328" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">DynamoDB locks</text>
+
+  <!-- IAM -->
+  <rect x="330" y="360" width="160" height="80" rx="14" fill="#fff" stroke="#F6BC7C" stroke-width="2.5"/>
+  <circle cx="395" cy="392" r="12" fill="#151611"/>
+  <path d="M395,404 c-10,0 -16,6 -16,14 h32 c0,-8 -6,-14 -16,-14 z" fill="#151611"/>
+  <path d="M418,385 l3,3 l6,-7" stroke="#F6BC7C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="410" y="424" font-size="11.5" font-weight="800" fill="#151611" text-anchor="middle">carepulse-admin</text>
+  <text x="410" y="435" font-size="8.5" fill="#7d8a96" text-anchor="middle">IAM + MFA (root locked away)</text>
+
+  <!-- terraform arrows into all 3 -->
+  <text x="290" y="200" font-size="10.5" font-weight="800" fill="#151611" text-anchor="middle" transform="rotate(-90 290 200)">terraform apply</text>
+
+  <!-- Lambda: carepulse-validate — DEPLOYED & LIVE -->
+  <rect x="330" y="460" width="160" height="80" rx="14" fill="#F6BC7C"/>
+  <rect x="378" y="480" width="24" height="32" rx="4" fill="#151611"/>
+  <path d="M390,485 l-7,9 h5 l-3,8 l9,-11 h-5 z" fill="#F6BC7C"/>
+  <text x="410" y="524" font-size="11.5" font-weight="800" fill="#151611" text-anchor="middle">Lambda: carepulse-validate</text>
+  <text x="410" y="536" font-size="8.5" fill="#151611" text-anchor="middle">✓ live · accept/reject/quarantine</text>
+
+  <line x1="410" y1="140" x2="410" y2="458" stroke="#151611" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="425" y="300" font-size="9" fill="#151611" font-weight="700" transform="rotate(90 425 300)">S3 ObjectCreated event</text>
+
+  <!-- ============ AWS PLANNED ============ -->
+  <rect x="700" y="50" width="150" height="80" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <rect x="738" y="70" width="42" height="30" rx="4" fill="none" stroke="#a8b0ba" stroke-width="2"/>
+  <text x="775" y="118" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">AWS Glue (PySpark)</text>
+
+  <rect x="700" y="150" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="775" y="188" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">S3 curated</text>
+  <text x="775" y="202" font-size="8.5" fill="#a8b0ba" text-anchor="middle">Parquet, partitioned</text>
+
+  <rect x="700" y="240" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="775" y="278" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Athena</text>
+  <text x="775" y="292" font-size="8.5" fill="#a8b0ba" text-anchor="middle">ad-hoc validation</text>
+
+  <rect x="700" y="330" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="775" y="368" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">SageMaker</text>
+  <text x="775" y="382" font-size="8.5" fill="#a8b0ba" text-anchor="middle">XGBoost training</text>
+
+  <!-- ============ SNOWFLAKE + ML PLANNED ============ -->
+  <rect x="960" y="90" width="150" height="80" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1035" y="128" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Snowflake</text>
+  <text x="1035" y="142" font-size="8.5" fill="#a8b0ba" text-anchor="middle">RAW→CORE dynamic tables</text>
+
+  <rect x="960" y="190" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1035" y="228" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Feature Store</text>
+  <text x="1035" y="242" font-size="8.5" fill="#a8b0ba" text-anchor="middle">30-day readmit label</text>
+
+  <rect x="960" y="280" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1035" y="318" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">QuickSight</text>
+  <text x="1035" y="332" font-size="8.5" fill="#a8b0ba" text-anchor="middle">dashboards</text>
+
+  <rect x="960" y="370" width="150" height="60" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1035" y="403" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">SNS alerts</text>
+
+  <!-- planned connecting arrows -->
+  <line x1="490" y1="90" x2="698" y2="90" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="850" y1="90" x2="958" y2="130" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="775" y1="130" x2="775" y2="148" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="775" y1="220" x2="775" y2="238" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="775" y1="310" x2="775" y2="328" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="1035" y1="170" x2="1035" y2="188" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <line x1="1035" y1="260" x2="1035" y2="278" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+</svg>
+    </div>
+    <div class="arch-legend">
+      <span class="li"><span class="sw" style="background:#F6BC7C"></span>Built &amp; verified this session</span>
+      <span class="li"><span class="sw" style="background:#fff;border:2px solid #F6BC7C"></span>Built (security/identity layer)</span>
+      <span class="li"><span class="sw" style="background:none;border:2px dashed #a8b0ba"></span>Planned — future phases</span>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <nav class="toc">
+    <p class="lbl">Reference</p>
+    <a href="#architecture"><span class="dot"></span>Architecture diagram</a>
+    <a href="#commands"><span class="dot"></span>Commands reference</a>
+    <p class="lbl">Sessions</p>
+    <a href="#session1"><span class="dot"></span>Session 1 — Phase 0</a>
+    <p class="lbl">Jump to</p>
+    <a href="#project-choice"><span class="dot"></span>Project selection</a>
+    <a href="#dataset"><span class="dot"></span>Dataset: Synthea vs CMS</a>
+    <a href="#sizing"><span class="dot"></span>Sizing the data</a>
+    <a href="#java"><span class="dot"></span>Java / PATH issues</a>
+    <a href="#aws-setup"><span class="dot"></span>AWS account setup</a>
+    <a href="#terraform-intro"><span class="dot"></span>Terraform basics</a>
+    <a href="#tf-remote-state"><span class="dot"></span>Remote state + locking</a>
+    <a href="#network-saga"><span class="dot"></span>IPv6 networking saga</a>
+    <a href="#session2"><span class="dot"></span>Session 2 — Phase 1</a>
+    <a href="#validate-design"><span class="dot"></span>Validation design</a>
+    <a href="#boto3-concept"><span class="dot"></span>What is boto3</a>
+    <a href="#range-read"><span class="dot"></span>S3 range reads</a>
+    <a href="#bom-gotcha"><span class="dot"></span>BOM encoding gotcha</a>
+    <a href="#trace-technique"><span class="dot"></span>Tracing execution</a>
+    <a href="#validate-full-walkthrough"><span class="dot"></span>validate.py full walkthrough</a>
+    <a href="#lambda-iam-deploy"><span class="dot"></span>Lambda + IAM deployment</a>
+    <a href="#quarantine-loop-guard"><span class="dot"></span>Quarantine loop-guard fix</a>
+    <a href="#live-trigger-proof"><span class="dot"></span>Live trigger proof</a>
+    <p class="lbl">Sessions</p>
+    <a href="#session3"><span class="dot"></span>Session 3 — Phase 2 begins</a>
+    <p class="lbl">Jump to</p>
+    <a href="#sql-gaps-islands"><span class="dot"></span>SQL: gaps &amp; islands</a>
+    <a href="#glue-iam-setup"><span class="dot"></span>Glue IAM setup</a>
+    <a href="#glue-9-files-mystery"><span class="dot"></span>9-files mystery</a>
+    <a href="#glue-missing-delete-perm"><span class="dot"></span>Missing DeleteObject perm</a>
+    <a href="#glue-final-verified"><span class="dot"></span>Transform verified</a>
+  </nav>
+
+  <main>
+
+    <section class="session" id="session1">
+      <div class="session-head">
+        <h2>Session 1 — Project Selection &amp; Phase 0 Foundations</h2>
+        <span class="date">Sep 2026</span>
+      </div>
+
+      <div class="topic decision" id="project-choice">
+        <h3><span class="tag decision">Decision</span> Which project, and why it targets this specific job</h3>
+        <p>Combined two independent project proposals (an AWS/Snowflake healthcare pipeline, and a CMS-Medicare
+        anomaly-detection idea) into one plan, explicitly shaped around a real job posting:
+        <b>Software Engineer III — ETL/PySpark | AWS | Snowflake | Python | SQL</b>.</p>
+        <div class="why"><b>Why this matters for interviews:</b> researched actual postings for this title before
+        designing anything. They consistently asked for AWS Glue (PySpark), Terraform (IaC), SageMaker integration,
+        S3/Athena/Redshift, CI/CD, and Glue job performance tuning. The project was designed backwards from those
+        requirements — not a generic tutorial project retrofitted with a job title.</div>
+      </div>
+
+      <div class="topic decision" id="dataset">
+        <h3><span class="tag decision">Decision</span> Synthea over CMS Medicare data</h3>
+        <p>Originally proposed CMS Medicare Part D Prescriber data (real claims, provider-level). Reversed this in
+        favor of <b>Synthea</b> synthetic patient data.</p>
+        <table>
+          <tr><th>Requirement</th><th>CMS Part D</th><th>Synthea</th></tr>
+          <tr><td>Supervised ML with a real label</td><td>❌ no patients/timeline, aggregate only</td><td>✅ patient encounters over time → real 30-day readmission label</td></tr>
+          <tr><td>Control data volume for PySpark</td><td>❌ fixed ~25M rows</td><td>✅ generate any patient count</td></tr>
+          <tr><td>PHI-free, publishable</td><td>✅</td><td>✅ (fully synthetic)</td></tr>
+        </table>
+        <div class="why"><b>Why:</b> the stated goal was to <i>learn ML properly</i>. Unsupervised anomaly detection
+        (the CMS idea) has no ground truth to validate against. Supervised learning with leakage/imbalance/splitting
+        concerns teaches far more of the ML fundamentals actually tested in interviews.</div>
+        <p style="margin-top:10px"><b>Honest caveat to state in interviews:</b> a model performing well on Synthea
+        has <i>not</i> been clinically validated — Synthea's patients follow rule-based disease modules, so learned
+        patterns partly reflect the generator, not medicine. This project is an educational demonstration, not
+        clinical decision support. Saying this unprompted is a maturity signal.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Why did you choose synthetic data instead of a real public healthcare dataset?</p>
+        <p class="a">Real patient-level data triggers HIPAA/PHI concerns and can't be freely published in a portfolio.
+        Synthea generates realistic-but-fake patient histories — encounters, conditions, meds, procedures — with zero
+        access friction, so I could build a genuine supervised-learning pipeline (readmission prediction) without any
+        of the legal risk, while being upfront that results are an educational demonstration, not clinically validated.</p>
+      </div>
+
+      <div class="topic decision" id="sizing">
+        <h3><span class="tag decision">Decision</span> Sizing the Synthea generation — reasoned, not guessed</h3>
+        <p>Ran a 100-patient test first (produced 112 records incl. deceased). Measured real output: <code>85 MB total</code>,
+        and checked the <code>ENCOUNTERCLASS</code> distribution before picking a population size:</p>
+        <table>
+          <tr><th>Class</th><th>Count (of 7,596)</th></tr>
+          <tr><td>ambulatory</td><td>4,562</td></tr>
+          <tr><td>wellness</td><td>1,434</td></tr>
+          <tr><td>outpatient</td><td>930</td></tr>
+          <tr><td><b>emergency</b></td><td><b>269</b></td></tr>
+          <tr><td>urgentcare</td><td>257</td></tr>
+          <tr><td><b>inpatient</b></td><td><b>61</b></td></tr>
+        </table>
+        <p>Only <code>inpatient</code>/<code>emergency</code> encounters qualify for the 30-day readmission label —
+        just <b>4.3%</b> of all encounters. Reasoned that population size must be driven by
+        <i>qualifying-encounter volume</i>, not total GB, since positive labels will be a small fraction of that
+        already-small pool.</p>
+        <div class="why"><b>Disk constraint hit mid-plan:</b> initial estimate for 50,000 patients was ~38&nbsp;GB
+        (naive linear scaling), but only 21.77&nbsp;GB was free on disk. Fixed two ways: (1) discovered
+        <code>exporter.csv.excluded_files</code> in <code>synthea.properties</code> and dropped unused exports
+        (<code>claims_transactions.csv</code> alone was 63% of total size and isn't needed for the readmission
+        model) — cut the per-patient footprint by ~73%; (2) separately freed 19&nbsp;GB of disk by uninstalling
+        unused tools (Anaconda, Katalon, Codex, stale caches). Final run: <b>57,538 patients, ~12&nbsp;GB</b>,
+        comfortably within budget.</div>
+      </div>
+
+      <div class="topic error" id="excluded-files-gotcha">
+        <h3><span class="tag error">Error / Gotcha</span> Synthea doesn't delete excluded files from previous runs</h3>
+        <p>After adding <code>exporter.csv.excluded_files</code> and re-running, the excluded files
+        (<code>claims.csv</code>, <code>claims_transactions.csv</code>, etc.) were still present in the output
+        folder — timestamps revealed they were stale leftovers from the <i>first</i> run, not newly written.</p>
+        <div class="why"><b>Root cause:</b> Synthea's CSV exporter only writes files for enabled exports; it never
+        proactively deletes files that become excluded between runs. <b>Fix:</b> always
+        <code>Remove-Item -Recurse -Force output</code> before every generation run, to guarantee a clean slate.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you decide how much synthetic data to generate?</p>
+        <p class="a">I didn't pick an arbitrary number. I ran a small test batch, measured the real class distribution
+        of encounter types, and calculated that only ~4% of encounters (inpatient/emergency) qualify for my label.
+        I sized the population so that rare-class volume would be large enough for the model to learn from — then
+        cross-checked that against actual disk space, and adjusted the Synthea config to exclude fields I don't
+        need, rather than just requesting fewer patients.</p>
+      </div>
+
+      <div class="topic error" id="java">
+        <h3><span class="tag error">Error / Gotcha</span> Old Java version silently shadowing a new install (PATH ordering)</h3>
+        <p>Machine had Java 8; Synthea requires 11+. Installed Java 21 via <code>winget</code>, but
+        <code>java -version</code> kept reporting 1.8.0 even after reopening the terminal once.</p>
+        <div class="why"><b>Root cause:</b> an old Oracle Java 8 stub launcher
+        (<code>...\Common Files\Oracle\Java\javapath\java.exe</code>) sat earlier in PATH than the new install.
+        <b>Fix:</b> fully closing and reopening the terminal (not just clearing it) let Windows re-resolve PATH in
+        the correct order — resolved without needing a manual <code>JAVA_HOME</code> override. This same
+        "PATH doesn't refresh in an already-open shell" issue recurred with <code>winget install Terraform</code>
+        and with VS Code's integrated terminal (which needed a full VS Code restart, not just a new terminal tab).</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You installed a new tool version but the terminal still runs the old one. What's happening?</p>
+        <p class="a">PATH is loaded into a shell's environment at the time it starts — it doesn't live-refresh from
+        installer changes. The fix is to fully restart the shell (or, for an IDE's integrated terminal, the whole
+        application) so it re-reads the system PATH. If it's still wrong after that, I'd check
+        <code>where.exe &lt;tool&gt;</code> to see every install on PATH in resolution order, and fix ordering or
+        set an explicit environment variable (e.g. <code>JAVA_HOME</code>) if an old version is shadowing the new one.</p>
+      </div>
+
+      <div class="topic decision" id="aws-setup">
+        <h3><span class="tag decision">Decision</span> AWS account security — root lockdown before any resources</h3>
+        <p>Order of operations was deliberate: create account → enable MFA on root → set a billing alarm →
+        create a scoped IAM user for daily work → log out of root entirely. No AWS resource was created before
+        all four of these existed.</p>
+        <div class="checklist">
+          <ul class="checklist">
+            <li>Root user MFA enabled (authenticator app)</li>
+            <li>Zero-spend budget alarm created (alerts above $0.01 — separate from the $100 free-credit pool, which it does NOT track)</li>
+            <li>IAM user <code>carepulse-admin</code> created with <code>AdministratorAccess</code>, MFA enabled</li>
+            <li>Region standardized on <code>us-east-1</code> for the whole project</li>
+          </ul>
+        </div>
+        <div class="why"><b>Why root gets locked away:</b> root has unlimited, unrevocable-by-others power over the
+        account. An IAM user's permissions can be revoked instantly by any other admin (or from another device) if
+        compromised — root has no such safety valve. Same least-privilege principle used for the Spotify project's
+        Cloud Function service accounts.</div>
+        <p style="margin-top:10px"><b>Gotcha:</b> AWS's "Zero-Spend Budget" tracks <i>billed</i> cost, not free-tier
+        credit consumption — it will stay silent while the $100 promotional credit is draining, since that shows as
+        $0 charged. The credit balance itself must be checked manually on the dashboard; the alarm only becomes an
+        active safety net once that credit hits zero.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Walk me through how you'd secure a brand-new AWS account before deploying anything.</p>
+        <p class="a">Enable MFA on the root user immediately — root is the account owner with unlimited power and no
+        one can revoke it if compromised. Set a billing/budget alarm before creating any resources, so unexpected
+        cost is caught immediately rather than discovered on a bill. Create a separate IAM user (or role) with only
+        the permissions actually needed, and use that for all day-to-day work — root should only be used for rare
+        account-level tasks afterward. This mirrors least-privilege practice everywhere else: scope the blast radius
+        of any single credential.</p>
+      </div>
+
+      <div class="topic decision" id="terraform-intro">
+        <h3><span class="tag concept">Concept</span> Terraform — what it is, and why this role wants it</h3>
+        <p>Terraform is <b>declarative infrastructure-as-code</b>: you describe the desired end state of
+        infrastructure in <code>.tf</code> files, and Terraform diffs that against a <b>state file</b> recording what
+        it previously created, then computes the minimum change needed.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}</code></pre></div>
+        <p>Core workflow, always in this order:</p>
+        <table>
+          <tr><th>Command</th><th>What it does</th></tr>
+          <tr><td><code>terraform init</code></td><td>Downloads the provider plugin (once per project)</td></tr>
+          <tr><td><code>terraform plan</code></td><td>Shows exactly what would change — nothing is touched yet</td></tr>
+          <tr><td><code>terraform apply</code></td><td>Makes the change, after review</td></tr>
+        </table>
+        <div class="why"><b>Why this vs. imperative scripts (e.g. a folder of <code>aws cli</code> commands):</b>
+        an imperative script has no idea what already exists — re-running it can duplicate resources or error out.
+        Terraform's state file means it always knows current reality, so re-applying an unchanged config is a no-op.
+        It's also cloud-agnostic (same tool/language for AWS, GCP, Snowflake, etc.), which is why it's the de facto
+        standard across nearly every Senior/SWE III posting reviewed for this project — unlike CloudFormation,
+        which is AWS-only.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What's the difference between declarative and imperative infrastructure management, and why does it matter?</p>
+        <p class="a">Imperative means specifying the exact steps to reach a result — e.g. a script of CLI commands
+        run in order. It has no memory of prior state, so re-running it can be unsafe or non-idempotent. Declarative
+        (Terraform's model) means specifying the desired end state; the tool computes the diff against what actually
+        exists (tracked in a state file) and applies only the necessary changes. This makes infrastructure changes
+        reviewable before they happen (<code>terraform plan</code>), reproducible, and safe to re-run.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question — now answered, from firsthand build</div>
+        <p class="q">Two engineers both run <code>terraform apply</code> on the same infrastructure at nearly the
+        same time. What goes wrong, and how is it prevented?</p>
+        <p class="a">With local state (a <code>.tfstate</code> file on someone's laptop), both engineers read state
+        independently, compute a plan, and race to write the same state file when they finish — this can corrupt
+        the file, or leave state reflecting only one apply even though both created real AWS resources, producing
+        untracked infrastructure. The fix is a <b>remote state backend with locking</b>: state lives in a shared
+        location (commonly S3), and before any <code>apply</code> runs, Terraform acquires a lock (via a DynamoDB
+        table, in the classic pattern). A second <code>apply</code> attempted while the lock is held fails outright
+        with a "state is locked" error, rather than racing — I built exactly this setup this session.</p>
+      </div>
+
+      <div class="topic decision" id="tf-remote-state">
+        <h3><span class="tag decision">Decision</span> Remote state: S3 backend + DynamoDB locking</h3>
+        <p>Bootstrapped remote state using Terraform itself: created an S3 bucket (versioned, for rollback safety)
+        to hold <code>terraform.tfstate</code>, and a DynamoDB table (<code>PAY_PER_REQUEST</code> billing) purely
+        for lock records, keyed on <code>LockID</code>. Added a <code>backend "s3" { ... }</code> block to
+        <code>main.tf</code>, re-ran <code>terraform init</code>, and confirmed the migration prompt before typing
+        <code>yes</code> to copy local state into the new backend.</p>
+        <div class="why"><b>Chicken-and-egg note:</b> the remote-state infrastructure itself had to be created
+        using <i>local</i> state first — a one-time, standard exception to "always use remote state."</div>
+        <p style="margin-top:10px"><b>Deprecation noted, not acted on:</b> the AWS provider (v5.100.0) warns that
+        <code>dynamodb_table</code> is deprecated in favor of native S3 locking (<code>use_lockfile</code>).
+        Deliberately kept the DynamoDB pattern for now — it's still the dominant pattern in existing company
+        codebases, and understanding it matters more at this stage than being on the newest syntax.</p>
+      </div>
+
+      <div class="topic error" id="network-saga">
+        <h3><span class="tag error">Error / Gotcha</span> IPv6 routing instability blocked HashiCorp + AWS traffic</h3>
+        <p><code>terraform init</code> repeatedly failed with <code>wsarecv: An existing connection was forcibly
+        closed by the remote host</code> when downloading the AWS provider. Later, <code>aws sts
+        get-caller-identity</code> and <code>aws s3 ls</code> began hanging indefinitely with no error at all.</p>
+        <div class="why"><b>Diagnosis, done in order rather than guessing:</b></div>
+        <table>
+          <tr><th>Test</th><th>Result</th><th>Ruled out</th></tr>
+          <tr><td><code>ping 8.8.8.8</code></td><td>12–15ms, 0% loss</td><td>Basic internet connectivity</td></tr>
+          <tr><td><code>nslookup sts.amazonaws.com</code></td><td>Resolved cleanly</td><td>DNS resolution</td></tr>
+          <tr><td><code>echo hello</code> in a fresh terminal</td><td>Instant</td><td>Frozen/hung shell process</td></tr>
+          <tr><td><code>$env:GODEBUG="netdns=go+ipv4"</code></td><td>Fixed <code>terraform init</code> once, not consistently</td><td>—</td></tr>
+        </table>
+        <p style="margin-top:8px">Every failing connection traced through the same IPv6 address prefix
+        (<code>2605:a601:af5c:ff00:...</code>), including the DNS server itself. Consistent with IPv6 being
+        technically live but unreliable for sustained HTTPS/TLS connections on this network — a known class of
+        ISP/router IPv6 issue.</p>
+        <div class="why"><b>Resolution:</b> a plain reboot fixed it completely — no IPv6 disable needed. Post-reboot,
+        <code>ping</code>, <code>aws sts get-caller-identity</code>, and <code>terraform init</code> all worked
+        instantly with no workarounds. Confirms it was transient adapter/routing state, not a persistent
+        router/ISP-level break — worth trying the cheapest fix (reboot) before a system-level change
+        (<code>Disable-NetAdapterBinding</code>), which stayed un-applied and wasn't needed.</p>
+      </div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You hit a network error during a cloud deployment. Walk me through how you'd debug it.</p>
+        <p class="a">I isolate layer by layer rather than guessing: first confirm basic connectivity (ping a known
+        IP, bypassing DNS entirely), then DNS resolution specifically (nslookup the failing hostname), then
+        whether the failure is tool-specific or systemic (test the same class of call — an HTTPS/API request — with
+        a different tool). In my case, ping and DNS both worked, but HTTPS calls hung across multiple unrelated
+        tools (Terraform and the AWS CLI), which pointed at the connection/TLS layer rather than DNS or basic
+        routing — and every failing address traced back to the same IPv6 prefix. I tried the lowest-risk fix
+        first (a reboot, which resets adapter/DNS state) before reaching for a system-level change like disabling
+        IPv6 on the adapter — and the reboot alone resolved it.</p>
+      </div>
+
+      <div class="topic error" id="console-region">
+        <h3><span class="tag error">Error / Gotcha</span> AWS Console showed "no tables" — wrong region selected</h3>
+        <p>DynamoDB console showed <code>Tables (0)</code> and "You have no tables in this account in this AWS
+        Region," even though <code>terraform apply</code> had just created <code>carepulse-terraform-locks</code>
+        successfully.</p>
+        <div class="why"><b>Root cause:</b> the console's region selector (top-right) was set to
+        <b>Ohio (us-east-2)</b>, while every resource in this project — set explicitly in the Terraform provider
+        block — lives in <b>N. Virginia (us-east-1)</b>. The AWS Console only ever shows resources for whichever
+        region is currently selected; it never searches across regions. <b>Fix:</b> switch the console's region
+        dropdown, or bypass the console entirely and verify via CLI with an explicit
+        <code>--region</code> flag, which is more reliable since it can't silently default to the wrong place.</p>
+      </div>
+      </div>
+
+      <div class="topic decision" id="state-verify">
+        <h3><span class="tag decision">Verified</span> Remote state migration — confirmed end to end</h3>
+        <p>Two checks, post-reboot, both clean on the first try:</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>aws s3 ls s3://carepulse-tfstate-preetham-2026/ --recursive
+&gt; carepulse/terraform.tfstate   (8,830 bytes)
+
+terraform plan
+&gt; No changes. Your infrastructure matches the configuration.</code></pre></div>
+        <p>The <code>plan</code> output showed all 4 resources being <code>Refreshing state...</code> against real
+        AWS before confirming no drift — proof Terraform was genuinely reading from the S3 backend (not a stale
+        local file) and that reality still matches the <code>.tf</code> config.</p>
+      </div>
+
+      <div class="topic decision" id="s3-upload">
+        <h3><span class="tag decision">Decision</span> Synthea data uploaded to S3, local copy removed</h3>
+        <p>Uploaded all 6 needed CSVs (13 files after Synthea's per-entity split) to the <code>carepulse-raw</code>
+        bucket, then deleted the local copy — closing the loop on the disk-space problem from earlier in the
+        session, since S3 is now the durable source of truth, not a laptop folder.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>aws s3 cp C:\dev\carepulse\data-gen\output\csv s3://carepulse-raw-preetham-2026/ --recursive
+aws s3 ls s3://carepulse-raw-preetham-2026/ --recursive --summarize
+&gt; Total Objects: 13   Total Size: 12,152,112,796 (~12.15 GB)
+
+Remove-Item -Recurse -Force C:\dev\carepulse\data-gen\output</code></pre></div>
+        <div class="why"><b>Verified, not assumed:</b> compared the S3 <code>--summarize</code> total against the
+        known local total before deleting anything — byte counts matched exactly, confirming a complete, uncorrupted
+        upload before removing the only other copy.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What's the difference between S3 and DynamoDB — when would you use each?</p>
+        <p class="a">S3 is object storage — it stores whole files (objects) and hands them back whole; it doesn't
+        understand structure inside the file. DynamoDB is a NoSQL database — it stores structured records (items)
+        with named fields and supports fast lookups/updates on individual records by key, with atomic
+        conditional-write guarantees. I used S3 for the Synthea CSVs and the Terraform state file, because both are
+        files read/written as a whole. I used DynamoDB purely for Terraform's lock records, because locking needs
+        an atomic "is this currently held" check on a tiny record — something DynamoDB is built for and S3
+        traditionally wasn't (though S3 has since added native locking as an alternative). The general pattern:
+        object storage for large, unstructured/whole-file data; NoSQL for fast structured lookups; a data
+        warehouse like Snowflake when you need complex queries and joins across relationships.</p>
+      </div>
+
+      <div class="topic" id="commands">
+        <h3><span class="tag concept">Reference</span> Commands used this session</h3>
+        <p>Every command run today, grouped by purpose, with a one-line note on what it does. Kept here as a
+        lookup — not meant to be read start to finish.</p>
+      </div>
+
+      <details class="cmd-cat">
+        <summary>Java / Synthea</summary>
+        <div class="cmd-row"><code class="cmdline">java -version</code><p>Checks the active Java version — Synthea requires 11+.</p></div>
+        <div class="cmd-row"><code class="cmdline">winget install EclipseAdoptium.Temurin.21.JDK</code><p>Installs OpenJDK 21 (Temurin build) via Windows Package Manager.</p></div>
+        <div class="cmd-row"><code class="cmdline">java -jar synthea-with-dependencies.jar -p 100 --exporter.csv.export true --exporter.fhir.export false</code><p>Generates N synthetic patients as CSV, skipping FHIR export.</p></div>
+        <div class="cmd-row"><code class="cmdline">java -jar synthea-with-dependencies.jar -c synthea.properties -p 50000</code><p>Same, but reads export config (incl. excluded files) from a properties file.</p></div>
+        <div class="cmd-row"><code class="cmdline">Remove-Item -Recurse -Force output</code><p>Deletes prior output before every run — Synthea doesn't clean up excluded files from previous runs on its own.</p></div>
+        <div class="cmd-row"><code class="cmdline">Import-Csv output\csv\encounters.csv | Group-Object ENCOUNTERCLASS | Select-Object Name, Count</code><p>Real distribution check on encounter types — drove the population-sizing decision.</p></div>
+      </details>
+
+      <details class="cmd-cat">
+        <summary>Disk / cleanup</summary>
+        <div class="cmd-row"><code class="cmdline">Get-PSDrive C</code><p>Shows used/free space on the C: drive.</p></div>
+        <div class="cmd-row"><code class="cmdline">Get-ChildItem &lt;path&gt; -Directory | ForEach-Object { measure size } | Sort-Object SizeGB -Descending</code><p>Ranks subfolders by size — used to find what was eating disk space before deleting anything blind.</p></div>
+        <div class="cmd-row"><code class="cmdline">Start-Process "ms-settings:appsfeatures"</code><p>Opens Windows' proper app uninstaller — used for Anaconda rather than deleting its folder directly.</p></div>
+      </details>
+
+      <details class="cmd-cat">
+        <summary>AWS account &amp; IAM</summary>
+        <div class="cmd-row"><code class="cmdline">winget install Amazon.AWSCLI</code><p>Installs the AWS CLI v2.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws configure</code><p>Interactively sets access key, secret key, default region, and output format for the CLI.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws sts get-caller-identity</code><p>Confirms which AWS identity the CLI is currently authenticated as — used to verify it was <code>carepulse-admin</code>, not root.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws s3 ls</code><p>Lists all S3 buckets in the account (top-level check that credentials/connectivity work).</p></div>
+        <div class="cmd-row"><code class="cmdline">aws s3 cp &lt;local-folder&gt; s3://&lt;bucket&gt;/ --recursive</code><p>Uploads every file in a folder (and subfolders) to S3, one object per file — <code>--recursive</code> is required for folders since a plain <code>cp</code> only handles single files.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws s3 ls s3://&lt;bucket&gt;/ --recursive --summarize</code><p>Lists every object in a bucket with a total object count and total byte size — used to verify an upload matched the local source exactly before deleting it.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws dynamodb list-tables --region us-east-1</code><p>Lists DynamoDB tables in a specific region — used to confirm a table existed after the AWS Console appeared empty (it was showing the wrong region).</p></div>
+        <div class="cmd-row"><code class="cmdline">aws configure get region</code><p>Shows the AWS CLI's currently configured default region.</p></div>
+      </details>
+
+      <details class="cmd-cat">
+        <summary>Python / boto3 (Phase 1)</summary>
+        <div class="cmd-row"><code class="cmdline">python -m venv venv</code><p>Creates an isolated Python environment for this sub-project, separate from any other project's dependencies.</p></div>
+        <div class="cmd-row"><code class="cmdline">.\venv\Scripts\Activate.ps1</code><p>Activates the virtual environment in the current PowerShell session — <code>(venv)</code> appears in the prompt when active.</p></div>
+        <div class="cmd-row"><code class="cmdline">pip install boto3</code><p>Installs AWS's Python SDK into the active venv.</p></div>
+        <div class="cmd-row"><code class="cmdline">python validate.py</code><p>Runs the full validation script — must be run from a terminal with the venv active, not via an IDE run button pointed at a different interpreter.</p></div>
+        <div class="cmd-row"><code class="cmdline">python -c "from validate import validate_file; print(validate_file('x.csv'))"</code><p>Imports a function from a script without running its <code>if __name__=="__main__"</code> block — used for quick one-off checks against individual functions.</p></div>
+      </details>
+
+      <details class="cmd-cat">
+        <summary>Terraform</summary>
+        <div class="cmd-row"><code class="cmdline">winget install HashiCorp.Terraform</code><p>Installs the Terraform CLI.</p></div>
+        <div class="cmd-row"><code class="cmdline">terraform -version</code><p>Confirms install and version.</p></div>
+        <div class="cmd-row"><code class="cmdline">terraform init</code><p>Downloads provider plugins; also handles backend migration when the backend config changes.</p></div>
+        <div class="cmd-row"><code class="cmdline">terraform plan -out=tfplan</code><p>Computes and saves the exact set of changes to a file, without applying anything.</p></div>
+        <div class="cmd-row"><code class="cmdline">terraform apply tfplan</code><p>Executes precisely the saved plan — safer than a bare <code>terraform apply</code>, which would recompute the plan fresh.</p></div>
+        <div class="cmd-row"><code class="cmdline">Get-Content terraform.tfstate | Select-Object -First 30</code><p>Peeked at the raw JSON state file to see what Terraform actually tracks per resource.</p></div>
+      </details>
+
+      <details class="cmd-cat">
+        <summary>Networking diagnosis</summary>
+        <div class="cmd-row"><code class="cmdline">$env:GODEBUG = "netdns=go+ipv4"</code><p>Forces Go-based tools (Terraform) to prefer IPv4 DNS resolution over IPv6.</p></div>
+        <div class="cmd-row"><code class="cmdline">Test-NetConnection releases.hashicorp.com -Port 443</code><p>Tests raw TCP reachability to a host on a specific port, independent of any application-level request.</p></div>
+        <div class="cmd-row"><code class="cmdline">ping 8.8.8.8</code><p>Raw ICMP connectivity test to a known-good IP — no DNS involved, isolates basic connectivity.</p></div>
+        <div class="cmd-row"><code class="cmdline">nslookup sts.amazonaws.com</code><p>Tests DNS resolution specifically, isolating it from the connection/TLS layer.</p></div>
+        <div class="cmd-row"><code class="cmdline">Get-NetAdapter | Where-Object {$_.Status -eq "Up"}</code><p>Lists active network adapters — needed to target the right one for an IPv6 change.</p></div>
+        <div class="cmd-row"><code class="cmdline">Disable-NetAdapterBinding -Name "Wi-Fi" -ComponentID ms_tcpip6</code><p>Would disable IPv6 on the Wi-Fi adapter specifically. Identified as the likely fix; not yet applied.</p></div>
+      </div>
+
+    </section>
+
+    <p class="no-results" id="noResults">No matches yet. Try <b>PATH</b>, <b>Synthea</b>, <b>Terraform</b>, <b>disk</b>, or <b>IAM</b>.</p>
+
+    <section class="session" id="session2">
+      <div class="session-head">
+        <h2>Session 2 — Phase 1: S3 Event Validation (in progress)</h2>
+        <span class="date">Sep 2026</span>
+      </div>
+
+      <div class="topic decision" id="validate-design">
+        <h3><span class="tag decision">Decision</span> What "validation" means, made concrete before writing code</h3>
+        <p>Defined validation as three checks per file, based on columns actually inspected in the real uploaded
+        data (not assumed from docs): required columns present, file non-empty, at least one real data row beyond
+        the header. Built a standalone <code>validate.py</code> script — run locally against real S3 objects — to
+        prove this logic before wrapping it as a deployed Lambda. Same discipline as the Spotify digest function:
+        prove logic locally first, deploy second.</p>
+        <table>
+          <tr><th>File</th><th>Required columns (from real inspection)</th></tr>
+          <tr><td>patients.csv</td><td>Id, BIRTHDATE, GENDER</td></tr>
+          <tr><td>encounters.csv</td><td>Id, START, STOP, PATIENT, ENCOUNTERCLASS</td></tr>
+          <tr><td>conditions / medications / procedures.csv</td><td>START, PATIENT, CODE, DESCRIPTION</td></tr>
+          <tr><td>observations.csv</td><td>DATE, PATIENT, CODE, VALUE</td></tr>
+        </table>
+        <div class="why"><b>Result:</b> proved against real data. 6/6 real files <code>ACCEPTED</code>; a
+        deliberately malformed test file correctly <code>REJECTED</code> with the exact missing columns named; an
+        untracked filename correctly <code>SKIPPED</code> rather than false-flagged.</div>
+      </div>
+
+      <div class="topic decision" id="boto3-concept">
+        <h3><span class="tag concept">Concept</span> boto3 — AWS's Python SDK</h3>
+        <p>The AWS equivalent of <code>google.cloud.storage</code> / <code>google.cloud.secretmanager</code> from
+        the Spotify project — a Python library that talks to AWS services directly, instead of shelling out to the
+        <code>aws</code> CLI. One client object (<code>boto3.client("s3")</code>) covers every S3 operation used.</p>
+        <div class="why"><b>Two authentication paths, same as the CLI vs. Lambda distinction:</b> running locally,
+        boto3 automatically finds the <code>carepulse-admin</code> keys already configured via
+        <code>aws configure</code>. Running inside an actual deployed Lambda, boto3 instead uses the function's
+        <b>execution role</b> (an IAM role, not a long-lived access key) — safer, since a role has no static secret
+        that can leak. This distinction matters when Phase 1 moves from local script to deployed function.</p>
+      </div>
+      </div>
+
+      <div class="topic decision" id="range-read">
+        <h3><span class="tag decision">Technique</span> S3 range reads — validating without downloading gigabytes</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>obj = s3.get_object(Bucket=BUCKET, Key=key, Range="bytes=0-8192")</code></pre></div>
+        <p>The <code>Range</code> parameter asks S3 for only the first 8KB of an object, not the whole file — enough
+        to get the header row and a few sample rows. Essential here: <code>observations.csv</code> alone is
+        7.7&nbsp;GB, and validation should be cheap and fast, not require downloading the entire file just to check
+        its column names.</p>
+      </div>
+
+      <div class="topic error" id="bom-gotcha">
+        <h3><span class="tag error">Error / Gotcha</span> BOM character caused a false "missing column" reading</h3>
+        <p>A manually-created test CSV (via PowerShell's <code>Out-File -Encoding utf8</code>) produced a header
+        that read as <code>'\ufeffWRONG'</code> instead of <code>'WRONG'</code> when decoded — a hidden
+        <b>Byte Order Mark</b> character silently prepended to the file.</p>
+        <div class="why"><b>Why it matters beyond this one test:</b> if any real upstream file ever had a BOM, the
+        first column name would never exactly match the rulebook (e.g. <code>'\ufeffId'</code> ≠ <code>'Id'</code>),
+        causing a <i>false rejection</i> of genuinely good data — arguably worse than a false acceptance, since it
+        silently blocks correct data for a reason that looks legitimate.</p></div>
+        <div class="why" style="margin-top:8px"><b>Verified before "fixing":</b> checked the real Synthea
+        <code>encounters.csv</code> directly — no BOM present, confirmed via <code>repr(header[0])</code> printing
+        clean <code>'Id'</code>. So this wasn't an active bug, but the fix (decode with <code>"utf-8-sig"</code>
+        instead of <code>"utf-8"</code>) was applied anyway as free defensive insurance — one word changed, zero
+        downside, protects against any future upstream source that does add a BOM.</p></div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How would you validate a large file lands correctly in S3 without downloading the whole thing?</p>
+        <p class="a">Use an HTTP Range request via <code>get_object(..., Range="bytes=0-N")</code> to pull only the
+        first few KB — enough to parse a header row and a handful of sample rows for a CSV, or check a magic-byte
+        signature for a binary format. This keeps validation cheap and fast even for multi-gigabyte files, and is
+        the same underlying mechanism video streaming and resumable downloads use to fetch partial content.</p>
+      </div>
+
+      <div class="topic" id="trace-technique">
+        <h3><span class="tag concept">Technique</span> Tracing execution value-by-value to build real understanding</h3>
+        <p>When the flow of values through <code>fetch_header_and_sample</code> → <code>validate_file</code> wasn't
+        clicking from reading the code alone, wrote a parallel <code>trace.py</code> with a print statement after
+        every single transformation — raw bytes → decoded text → split lines → parsed CSV rows → header list →
+        header set → the set-subtraction result — and ran it against one real call
+        (<code>validate_file("encounters.csv")</code>).</p>
+        <div class="why"><b>Why this works better than re-reading code:</b> reading code and tracing execution are
+        different skills. Seeing the <i>actual</i> intermediate values for one real, concrete call — not an
+        imagined generic case — turns "I copy-pasted working code" into genuine understanding of what each line
+        does and why. A reusable debugging habit, not a one-off: add throwaway print statements, trace one real
+        example fully, remove them once the shape is clear.</p>
+      </div>
+      </div>
+
+      <div class="topic" id="validate-full-walkthrough">
+        <h3><span class="tag concept">Reference</span> <code>validate.py</code> — full code, explained chunk by chunk</h3>
+        <p>The complete file as it stands at the end of this phase, with every function's purpose and every
+        non-obvious Python/boto3 feature called out. Kept here as the canonical reference to re-read before
+        explaining this project in an interview.</p>
+
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>import boto3
+import csv
+import io
+
+s3 = boto3.client("s3")
+BUCKET = "carepulse-raw-preetham-2026"
+
+EXPECTED_COLUMNS = {
+    "patients.csv":    {"Id", "BIRTHDATE", "GENDER"},
+    "encounters.csv":  {"Id", "START", "STOP", "PATIENT", "ENCOUNTERCLASS"},
+    "conditions.csv":  {"START", "PATIENT", "CODE", "DESCRIPTION"},
+    "medications.csv": {"START", "PATIENT", "CODE", "DESCRIPTION"},
+    "procedures.csv":  {"START", "PATIENT", "CODE", "DESCRIPTION"},
+    "observations.csv":{"DATE", "PATIENT", "CODE", "VALUE"},
+}
+
+def fetch_header_and_sample(key, sample_rows=5):
+    obj = s3.get_object(Bucket=BUCKET, Key=key, Range="bytes=0-8192")
+    text = obj["Body"].read().decode("utf-8-sig", errors="replace")
+    lines = text.splitlines()
+    reader = csv.reader(lines)
+    rows = list(reader)
+    return rows[0] if rows else [], rows[1:sample_rows+1]
+
+def validate_file(key):
+    if key not in EXPECTED_COLUMNS:
+        return {"key": key, "status": "SKIPPED", "reason": "not a tracked file"}
+    try:
+        header, sample = fetch_header_and_sample(key)
+    except Exception as e:
+        return {"key": key, "status": "REJECTED", "reason": f"could not read: {e}"}
+    if not header:
+        return {"key": key, "status": "REJECTED", "reason": "empty file, no header"}
+    header_set = set(header)
+    required = EXPECTED_COLUMNS[key]
+    missing = required - header_set
+    if missing:
+        return {"key": key, "status": "REJECTED", "reason": f"missing columns: {missing}"}
+    if not sample:
+        return {"key": key, "status": "REJECTED", "reason": "header present but no data rows"}
+    return {"key": key, "status": "ACCEPTED", "reason": f"{len(header)} columns, sample OK"}
+
+def quarantine_file(key, reason):
+    copy_source = {"Bucket": BUCKET, "Key": key}
+    dest_key = f"quarantine/{key}"
+    s3.copy_object(Bucket=BUCKET, CopySource=copy_source, Key=dest_key)
+    s3.delete_object(Bucket=BUCKET, Key=key)
+    print(f"  -> moved to {dest_key} (reason: {reason})")
+
+def lambda_handler(event, context):
+    results = []
+    for record in event["Records"]:
+        key = record["s3"]["object"]["key"]
+        result = validate_file(key)
+        results.append(result)
+        print(f"{result['status']:10} {result['key']:20} {result.get('reason','')}")
+        if result["status"] == "REJECTED":
+            quarantine_file(key, result["reason"])
+    return {"results": results}
+
+if __name__ == "__main__":
+    fake_event = {
+        "Records": [
+            {"s3": {"bucket": {"name": "carepulse-raw-preetham-2026"}, "object": {"key": "encounters.csv"}}}
+        ]
+    }
+    output = lambda_handler(fake_event, None)
+    print(output)</code></pre></div>
+
+        <h4 class="mini" style="margin-top:20px">Imports &amp; setup</h4>
+        <table>
+          <tr><th>Line</th><th>What it does / why</th></tr>
+          <tr><td><code>import boto3</code></td><td>AWS's Python SDK — every call to S3 in this file goes through it.</td></tr>
+          <tr><td><code>import csv</code></td><td>Python's built-in CSV parser — turns raw text lines into proper rows, handling quoting/commas-in-values correctly (a manual <code>.split(',')</code> would break on any quoted field containing a comma).</td></tr>
+          <tr><td><code>import io</code></td><td><b>Dead import — never actually used in the final file.</b> Left over from an earlier draft. Harmless, but worth removing; a reviewer or linter would flag it. Good habit to prune before calling code "done."</td></tr>
+          <tr><td><code>s3 = boto3.client("s3")</code></td><td>Creates one reusable S3 client object. Built once at import time, then every function below reuses this same connection rather than creating a new one per call.</td></tr>
+          <tr><td><code>BUCKET = "..."</code></td><td>A module-level constant so the bucket name is written once, not repeated (and risk being typo'd differently) in five different function calls.</td></tr>
+        </table>
+
+        <h4 class="mini">EXPECTED_COLUMNS — the rulebook</h4>
+        <p>A <b>dict of sets</b>: each real filename maps to the minimum columns it must contain. A <b>set</b>, not a
+        list, specifically because the next function needs to do set subtraction (<code>required - header_set</code>)
+        to find missing columns in one operation — using a list would mean writing a manual loop to check membership
+        for each required column instead.</p>
+
+        <h4 class="mini"><code>fetch_header_and_sample(key, sample_rows=5)</code></h4>
+        <table>
+          <tr><th>Line</th><th>What it does / why</th></tr>
+          <tr><td><code>Range="bytes=0-8192"</code></td><td>Requests only the first 8KB of the S3 object, not the whole file — critical since <code>observations.csv</code> alone is 7.7GB. This is a standard HTTP range request, the same mechanism behind resumable downloads and video streaming.</td></tr>
+          <tr><td><code>obj["Body"].read()</code></td><td><code>obj</code> is a dict-like response; the actual file bytes live nested under <code>["Body"]</code> as a stream object, and <code>.read()</code> pulls the bytes out of it.</td></tr>
+          <tr><td><code>.decode("utf-8-sig", errors="replace")</code></td><td>Converts raw bytes into a real Python string. <code>-sig</code> specifically strips a BOM (Byte Order Mark) if one is present — added defensively after discovering a BOM in a manually-created test file (see the BOM gotcha card above); <code>errors="replace"</code> swaps any truly undecodable byte for a placeholder instead of crashing the whole function.</td></tr>
+          <tr><td><code>text.splitlines()</code></td><td>Breaks the one long decoded string into a list of individual lines.</td></tr>
+          <tr><td><code>csv.reader(lines)</code> → <code>list(reader)</code></td><td>Parses each line into a proper list of field values (handling quoted commas correctly), then materializes the whole (small, 8KB-limited) result as a list of rows.</td></tr>
+          <tr><td><code>return rows[0] if rows else [], rows[1:sample_rows+1]</code></td><td>Returns two things at once (a Python tuple, unpacked by the caller): the header row (or an empty list if the file was totally empty — this ternary is what prevents an <code>IndexError</code> on an empty file), and up to <code>sample_rows</code> data rows via list slicing.</td></tr>
+        </table>
+
+        <h4 class="mini"><code>validate_file(key)</code> — the decision logic</h4>
+        <p>A sequence of <b>guard clauses</b> — each <code>if</code> is a reason to return early with a rejection;
+        surviving every check falls through to <code>ACCEPTED</code> at the bottom. This pattern (return early on
+        each failure condition, rather than nesting everything inside one big <code>if/else</code>) keeps the
+        function flat and each failure reason explicit and separately readable.</p>
+        <table>
+          <tr><th>Check</th><th>Why it exists</th></tr>
+          <tr><td><code>if key not in EXPECTED_COLUMNS</code></td><td>Untracked file → <code>SKIPPED</code>, neither good nor bad, just irrelevant to this validator.</td></tr>
+          <tr><td><code>try / except Exception as e</code></td><td>Catches any failure from the S3 read itself (file genuinely missing, permissions issue, network error) and turns it into a structured <code>REJECTED</code> result instead of an unhandled crash that would kill the whole Lambda invocation.</td></tr>
+          <tr><td><code>if not header</code></td><td>File existed but was completely empty — no header row at all.</td></tr>
+          <tr><td><code>missing = required - header_set</code></td><td>Set subtraction: "everything in <code>required</code> that is <i>not</i> in what we actually found." An empty result means nothing's missing.</td></tr>
+          <tr><td><code>if not sample</code></td><td>Header exists but there's not even one real data row beneath it — technically has columns, but no content.</td></tr>
+        </table>
+
+        <h4 class="mini"><code>quarantine_file(key, reason)</code></h4>
+        <p>S3 has <b>no native "move" operation</b> — every move is a <code>copy_object</code> followed by a
+        <code>delete_object</code> of the original. The order matters: copy happens <i>first</i>, so if the copy
+        fails partway (network blip, permissions), the original file is untouched and nothing is lost. Deleting
+        first would risk destroying data if the copy then failed.</p>
+
+        <h4 class="mini"><code>lambda_handler(event, context)</code> — the real entry point</h4>
+        <table>
+          <tr><th>Line</th><th>What it does / why</th></tr>
+          <tr><td><code>def lambda_handler(event, context):</code></td><td>This exact name and two-parameter signature is what AWS Lambda calls automatically when the function is triggered. <code>event</code> carries the trigger data (the S3 notification); <code>context</code> carries runtime metadata (request ID, time remaining) — unused here, but Lambda always passes it, so the parameter must exist.</td></tr>
+          <tr><td><code>for record in event["Records"]</code></td><td>S3 notifications are always a list under <code>"Records"</code>, even when only one file triggered the event — S3 <i>can</i> batch multiple events into one invocation, so the code must handle that possibility even though today it's always exactly one.</td></tr>
+          <tr><td><code>record["s3"]["object"]["key"]</code></td><td>The actual filename, buried three levels deep in AWS's event JSON structure. This exact path has to match AWS's real event shape precisely — getting one key name wrong here fails silently with a <code>KeyError</code> in production.</td></tr>
+          <tr><td><code>result.get('reason','')</code></td><td><code>.get()</code> instead of <code>result['reason']</code> — a dict's <code>.get(key, default)</code> returns the default instead of crashing if the key happens to be missing. Defensive, low-cost insurance.</td></tr>
+          <tr><td><code>if result["status"] == "REJECTED": quarantine_file(...)</code></td><td>The actual enforcement step — a rejection isn't just logged, the file is genuinely moved out of the main prefix so nothing downstream can accidentally read it.</td></tr>
+        </table>
+
+        <h4 class="mini"><code>if __name__ == "__main__":</code> block</h4>
+        <p>A Python convention: this code only runs when the file is executed directly
+        (<code>python validate.py</code>), <i>not</i> when it's imported elsewhere (e.g.
+        <code>from validate import lambda_handler</code>, used repeatedly for one-off tests). It builds a
+        hand-crafted dict matching AWS's real S3-event shape and calls <code>lambda_handler</code> with it —
+        proving the function behaves correctly before it's ever deployed to real AWS, the same "prove it locally
+        first" discipline used throughout this project.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question — Phase 1 status: COMPLETE</div>
+        <p class="q">Walk me through your S3 file validation pipeline.</p>
+        <p class="a">A Python script, proven locally with boto3 against real S3 data: it range-reads the first 8KB
+        of a file (never the whole thing — one of my tables is 7.7GB), checks required columns via set subtraction,
+        and returns ACCEPTED / REJECTED / SKIPPED with a specific reason. On REJECTED, it moves the file to a
+        <code>quarantine/</code> prefix via copy-then-delete (S3 has no native move). It's deployed as a real Lambda
+        — IAM execution role scoped to exactly <code>GetObject</code>/<code>CopyObject</code>/<code>DeleteObject</code>/
+        <code>PutObject</code> on one bucket, wired to an S3 <code>ObjectCreated</code> event notification, all
+        created via Terraform. Proven live — not just locally — via real CloudWatch logs: an upload triggers the
+        function automatically with zero manual invocation.</p>
+      </div>
+
+      <div class="topic decision" id="lambda-iam-deploy">
+        <h3><span class="tag decision">Decision</span> Deploying the Lambda — IAM role, function, and S3 trigger, all via Terraform</h3>
+        <p>Three Terraform resources, added incrementally with a <code>plan</code>/<code>apply</code> cycle between
+        each so every change was reviewed before it landed:</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>resource "aws_iam_role" "validate_lambda_role" {
+  name = "carepulse-validate-lambda-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "validate_lambda_policy" {
+  name = "carepulse-validate-lambda-policy"
+  role = aws_iam_role.validate_lambda_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject","s3:CopyObject","s3:DeleteObject","s3:PutObject"]
+        Resource = "${aws_s3_bucket.carepulse_raw.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "validate" {
+  function_name    = "carepulse-validate"
+  role             = aws_iam_role.validate_lambda_role.arn
+  handler          = "validate.lambda_handler"
+  runtime          = "python3.12"
+  timeout          = 30
+  memory_size      = 128
+  filename         = "../lambda-validate/validate.zip"
+  source_code_hash = filebase64sha256("../lambda-validate/validate.zip")
+}
+
+resource "aws_lambda_permission" "allow_s3" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.validate.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.carepulse_raw.arn
+}
+
+resource "aws_s3_bucket_notification" "raw_bucket_trigger" {
+  bucket = aws_s3_bucket.carepulse_raw.id
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.validate.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+  depends_on = [aws_lambda_permission.allow_s3]
+}</code></pre></div>
+        <div class="why"><b>Two mechanisms worth being able to explain separately:</b> the <b>IAM role</b> controls
+        what the function <i>can do</i> once running (its permissions); the <b>Lambda permission</b>
+        (<code>aws_lambda_permission</code>) controls <i>who's allowed to invoke it</i> at all — a completely
+        separate system. Without the permission resource, S3 would try to call the function and get rejected even
+        though the function itself exists and works.</div>
+        <p style="margin-top:10px"><b>The explicit <code>depends_on</code>:</b> Terraform can't infer that the
+        notification needs the permission to exist first, since the notification resource doesn't reference the
+        permission resource in its arguments — this is one of the rare cases requiring a manually-stated
+        dependency rather than relying on Terraform's automatic reference-based ordering.</p>
+      </div>
+
+      <div class="topic error" id="quarantine-loop-guard">
+        <h3><span class="tag error">Decision / Gotcha</span> The quarantine re-trigger loop risk — caught before it happened</h3>
+        <p>S3 event notifications can only <i>include</i> by prefix/suffix filter — there's no native way to
+        <i>exclude</i> a prefix. Wiring the trigger to the whole bucket meant a file written to
+        <code>quarantine/</code> by <code>quarantine_file()</code> would itself fire the Lambda again.</p>
+        <div class="why"><b>The fix — explicit, not incidental:</b> the code already avoided a real loop by
+        accident (<code>quarantine/encounters.csv</code> isn't a key in <code>EXPECTED_COLUMNS</code>, so it would
+        fall through to SKIPPED) — but relying on an implicit side-effect of a dict lookup is fragile and
+        non-obvious to a future reader. Added an explicit guard as the very first check in <code>lambda_handler</code>:</div>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>if key.startswith("quarantine/"):
+    print(f"SKIPPED    {key:20} (quarantine write, ignored to avoid re-trigger loop)")
+    continue</code></pre></div>
+        <p style="margin-top:8px">Tested locally first (fake event with a <code>quarantine/</code> key → confirmed
+        <code>{'results': []}</code>, meaning the file was never even read from S3, not just quarantined again) —
+        then re-zipped, re-deployed via <code>terraform apply</code> (a code-only update: <code>source_code_hash</code>
+        changed, IAM role/policy untouched), and the fix shipped before the trigger was ever wired up live.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You're wiring an S3 event to a Lambda that also writes back to the same bucket. What's the risk, and how do you prevent it?</p>
+        <p class="a">S3 notifications can filter by prefix/suffix to <i>include</i> certain keys, but there's no
+        native filter to <i>exclude</i> one — so if the Lambda's own output lands in the same bucket (like a
+        quarantine or processed-output folder), that write can itself trigger the function again. I handle it with
+        an explicit early-exit guard in the handler — checking the key against the output prefix before any real
+        work happens — rather than relying on downstream logic to incidentally ignore it. Explicit guards are
+        safer than incidental ones because they document the risk for the next person reading the code, and they
+        don't silently break if the downstream logic ever changes.</p>
+      </div>
+
+      <div class="topic decision" id="live-trigger-proof">
+        <h3><span class="tag decision">Verified</span> Live, automatic trigger — proven via real CloudWatch logs, not local tests</h3>
+        <p>Two real S3 uploads, checked against actual Lambda execution logs (<code>aws logs tail
+        /aws/lambda/carepulse-validate</code>) — with zero manual invocation of the function itself:</p>
+        <table>
+          <tr><th>Test</th><th>Result</th><th>Duration</th><th>Memory used</th></tr>
+          <tr><td>Re-upload a real tracked file (<code>encounters.csv</code>)</td><td>ACCEPTED</td><td>324.84 ms</td><td>96 / 128 MB</td></tr>
+          <tr><td>Upload an untracked filename</td><td>SKIPPED</td><td>1.87 ms</td><td>95 / 128 MB</td></tr>
+        </table>
+        <div class="why"><b>The 1.87ms vs 325ms gap is the real story:</b> the untracked-file check
+        (<code>if key not in EXPECTED_COLUMNS</code>) rejects before ever calling
+        <code>fetch_header_and_sample()</code> — so an irrelevant file costs almost nothing, no S3 range-read at
+        all. That's the guard-clause ordering (cheapest checks first) paying off with a measured number, not just
+        a theoretical claim.</div>
+        <p style="margin-top:8px"><b>Right-sizing confirmed, not assumed:</b> 128MB memory allocated, 95-96MB
+        actually used both times — comfortable headroom without over-provisioning, the same instinct as the
+        Snowflake credit-schedule fix from the Spotify project, this time backed by real Lambda billing metrics.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you verify your Lambda actually works after deploying it — not just that <code>terraform apply</code> succeeded?</p>
+        <p class="a"><code>terraform apply</code> succeeding only proves the resource was created in AWS — it says
+        nothing about whether the trigger wiring or the code inside actually works end to end. I proved that
+        separately: uploaded a real file to S3, then read the function's actual CloudWatch logs
+        (<code>aws logs tail /aws/lambda/&lt;name&gt; --since 5m</code>) to confirm it was invoked automatically
+        and produced the expected output — with real duration and memory numbers, not just a success message. I
+        did this for two different code paths (a valid tracked file, and an untracked one) rather than stopping
+        after the first one worked.</p>
+      </div>
+
+    </section>
+
+    <section class="session" id="session3">
+      <div class="session-head">
+        <h2>Session 3 — Coding Practice + Phase 2: Glue/PySpark Begins</h2>
+        <span class="date">Sep 2026</span>
+      </div>
+
+      <div class="topic decision" id="quiz-design-note">
+        <h3><span class="tag concept">Technique</span> A flaw in self-testing: length-matched MCQ options</h3>
+        <p>First practice quiz round was rated "too easy" — the correct answer was consistently the longest,
+        most-detailed option among the four, making it identifiable without reading the question at all.</p>
+        <div class="why"><b>Fix, now a standing rule for all future quizzes:</b> every option in a multiple-choice
+        question must be similar in length and level of detail. A correct-but-verbose answer next to three short
+        distractors isn't testing knowledge — it's testing pattern recognition on formatting. Saved as a persistent
+        preference so every quiz from here forward defaults to this.</div>
+      </div>
+
+      <div class="topic decision" id="sql-gaps-islands">
+        <h3><span class="tag decision">Coding Practice</span> SQL — "gaps and islands" (longest consecutive-login streak)</h3>
+        <p>Given a table of one row per user per login date, find each user's longest run of <i>consecutive</i>
+        calendar-day logins. First attempt used <code>PARTITION BY user_id, login_date</code> with
+        <code>ORDER BY COUNT(*) DESC</code> inside a window function — invalid syntax, and conceptually wrong (that
+        partition puts every row alone in its own group, since a user never logs in twice on the same date).</p>
+        <p>Second attempt correctly identified the real trick but used an unsupported
+        <code>INTERVAL '1' DAY * ROW_NUMBER()</code> multiplication.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>WITH ranked AS (
+  SELECT user_id, login_date,
+         login_date - ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY login_date) AS grp
+  FROM user_logins
+),
+streaks AS (
+  SELECT user_id, grp, COUNT(*) AS streak_length
+  FROM ranked
+  GROUP BY user_id, grp
+)
+SELECT user_id, MAX(streak_length) AS longest_streak
+FROM streaks
+GROUP BY user_id;</code></pre></div>
+        <div class="why"><b>The core insight:</b> subtracting a sequential row number from a sequential date
+        produces a <i>constant</i> value for every row in an unbroken consecutive run — because both the date and
+        the row number climb by exactly 1 together, the difference stays frozen. The instant there's a gap, the
+        difference jumps to a new constant. That computed value becomes a free grouping key for each unbroken
+        "island" of consecutive dates. Fix for the syntax error: plain integer subtraction on a date
+        (<code>login_date - ROW_NUMBER() OVER (...)</code>) works directly in Snowflake — no <code>INTERVAL</code>
+        needed at all.</div>
+        <p style="margin-top:8px"><b>Interview-floor move worth remembering:</b> state the relied-on assumption out
+        loud even when the problem guarantees it — "I'm assuming no duplicate same-day logins, since
+        <code>ROW_NUMBER()</code> would silently corrupt the grouping key otherwise."</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How would you find the longest streak of consecutive-day activity per user in SQL?</p>
+        <p class="a">This is the classic "gaps and islands" pattern. Subtract a per-user sequential row number
+        (ordered by date) from the date itself — for any unbroken run of consecutive dates, that difference stays
+        constant, and it changes the moment there's a gap. Group by that computed value to isolate each streak,
+        count the rows in each group to get streak lengths, then take the max per user. The same subtract-a-counter
+        trick generalizes to any "find consecutive runs" problem, not just dates.</p>
+      </div>
+
+      <div class="topic decision" id="glue-iam-setup">
+        <h3><span class="tag decision">Decision</span> Glue's IAM role/policy — same pattern as Lambda, different service</h3>
+        <p>Reused the exact two-resource pattern from Phase 1's Lambda role: a trust policy (who can assume the
+        identity) separate from a permissions policy (what it can do once assumed) — just with
+        <code>Service = "glue.amazonaws.com"</code> instead of <code>lambda.amazonaws.com</code>, and
+        <code>s3:ListBucket</code> newly needed (Glue discovers files by listing a bucket; Lambda's S3 event
+        already handed it one specific key directly, so it never needed to list anything).</p>
+        <div class="why"><b>Role vs. policy, restated plainly:</b> the role is the identity itself, wearable only by
+        whatever the trust policy names. The policy is a separate, swappable document defining what that identity
+        can do once assumed. Two independent concerns — same badge-and-doors mental model as Phase 1.</div>
+      </div>
+
+      <div class="topic decision" id="glue-job-sizing">
+        <h3><span class="tag decision">Decision</span> Right-sizing the Glue job — deliberately small, matching the Lambda memory instinct</h3>
+        <table>
+          <tr><th>Setting</th><th>Value</th><th>Why</th></tr>
+          <tr><td><code>worker_type</code></td><td><code>G.1X</code></td><td>Smallest standard Glue worker (4 vCPU/16GB) — no reason to pay for more on a small file</td></tr>
+          <tr><td><code>number_of_workers</code></td><td>2</td><td>Near the minimum Glue allows; note Glue reserves one worker as the Spark driver, so this is effectively 1 driver + 1 real executor</td></tr>
+          <tr><td><code>job-bookmark-option</code></td><td><code>job-bookmark-disable</code></td><td>Bookmarks (skip-already-processed-files) add state-tracking complexity not worth debugging alongside basic transform correctness — revisit once the transform itself is proven stable</td></tr>
+          <tr><td><code>max_retries</code></td><td>0</td><td>Want failures loud and immediate during development, not silently retried and masked</td></tr>
+        </table>
+        <div class="why"><b>Same instinct as the Lambda's 128MB memory setting:</b> right-size to actual measured
+        need, not to a comfortable default — and treat the first configuration as a hypothesis to test against
+        real numbers, not a final answer.</div>
+      </div>
+
+      <div class="topic error" id="glue-9-files-mystery">
+        <h3><span class="tag error">Gotcha</span> 9 output files from a source file thought to be 3.6MB</h3>
+        <p>First run of <code>transform_encounter.py</code> (a bare <code>spark.read.csv(...).write.parquet(...)</code>,
+        deliberately unoptimized) produced 9 separate <code>part-*.snappy.parquet</code> files, each ~21MB.</p>
+        <div class="why"><b>Root cause:</b> Spark writes one output file per partition, and partition count comes
+        from default parallelism (tied to available worker cores), not from actual input data size — a genuinely
+        small file can still get split into many partitions if the cluster has that much default parallelism
+        available. Fix: force a specific output file count with <code>.repartition(N)</code> before
+        <code>.write</code>.</div>
+        <p style="margin-top:10px"><b>A self-correction worth recording:</b> the "3.6MB source" figure driving this
+        analysis was wrong — it was accidentally carried over from the 200-patient Synthea <i>test</i> run size,
+        not the real 57,538-patient file. The actual <code>encounters.csv</code> is ~1.08GB (confirmed via the
+        earlier <code>aws s3 ls --summarize</code> output). Caught only once the corrected math was run against
+        the final result — a good example of why cross-checking a number against its actual source matters, even
+        (especially) when the number came from someone confident.</p>
+      </div>
+
+      <div class="topic error" id="glue-concurrent-write" style="margin-top:16px">
+        <h3><span class="tag error">Gotcha</span> Concurrent job runs colliding on the same output path</h3>
+        <p>Started a second <code>start-job-run</code> while the first was still <code>RUNNING</code>, both targeting
+        the identical <code>curated/encounters/</code> output path. The second run failed:
+        <code>Failed to delete key: curated/encounters</code>.</p>
+        <div class="why"><b>Why:</b> Spark's <code>mode("overwrite")</code> deletes existing files at the target
+        path before writing new ones. Two concurrent jobs performing that delete-then-write cycle against the same
+        prefix can collide — no file-locking exists in S3 to prevent it. Same category of problem as the Terraform
+        state race condition from Phase 0, different layer of the stack. <b>Rule going forward:</b> never start a
+        second run of a job targeting the same output while an earlier run is still in flight — wait for
+        SUCCEEDED/FAILED first.</div>
+      </div>
+
+      <div class="topic error" id="glue-missing-delete-perm" style="margin-top:16px">
+        <h3><span class="tag error">Gotcha</span> The real root cause — found by not trusting an initial theory</h3>
+        <p>The exact same <code>Failed to delete key: curated/encounters</code> error recurred on a
+        <i>later, non-concurrent</i> run — disproving the concurrent-write theory as the sole explanation, since
+        nothing else was running that time.</p>
+        <div class="why"><b>Actual root cause:</b> the Glue IAM policy granted <code>GetObject</code>,
+        <code>PutObject</code>, and <code>ListBucket</code> — but never <code>DeleteObject</code>. The very first
+        run succeeded only because the output path was empty (nothing to delete, so the missing permission was
+        never exercised). Every run after that had real files to overwrite, which requires
+        <code>DeleteObject</code> — and failed. Fix: add <code>"s3:DeleteObject"</code> to the policy's action
+        list, <code>terraform plan</code> (showed a clean in-place update, not a new resource) and apply.</div>
+        <p style="margin-top:8px"><b>The methodology point, not just the fix:</b> when a repeat failure doesn't fit
+        the first theory, the theory needs to be dropped, not defended — the concurrent-write explanation was a
+        reasonable first guess, but the second failure (under different conditions) was evidence that should
+        override it, not be explained away.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You've deployed a Glue job with what looks like the right IAM permissions, and it works the first time — then fails on every run after that. How do you debug it?</p>
+        <p class="a">I don't trust that "worked once" means the permissions are correct — I check what's actually
+        different between the successful run and the failing ones. In my case, the first run wrote to an empty S3
+        prefix, and every later run needed to overwrite existing files first. That's the clue: <code>overwrite</code>
+        mode deletes before it writes, so a permission set that's missing <code>DeleteObject</code> looks completely
+        fine until there's something to delete. The fix is reading the actual IAM policy against the actual
+        operation being attempted, not assuming a first success proves the whole permission set is right.</p>
+      </div>
+
+      <div class="topic decision" id="glue-final-verified" style="margin-top:16px">
+        <h3><span class="tag decision">Verified</span> Encounters transform — correct output, with corrected math</h3>
+        <table>
+          <tr><th>Metric</th><th>Value</th></tr>
+          <tr><td>Source (encounters.csv, real size)</td><td>~1.08 GB</td></tr>
+          <tr><td>Output (1 file, after fixes)</td><td>~180 MB, single Parquet+Snappy file</td></tr>
+          <tr><td>Compression ratio</td><td>~6x</td></tr>
+        </table>
+        <div class="why"><b>Total bytes sanity check:</b> the earlier broken 9-file run summed to roughly the same
+        total size as this single consolidated file — confirming <code>repartition(1)</code> changed file
+        <i>count</i>, not the underlying data, exactly as intended.</div>
+        <p style="margin-top:8px"><b>Decision NOT yet made, deliberately:</b> <code>repartition(1)</code> is
+        reasonable for this ~180MB output (within the typical 128MB–1GB Parquet file-size sweet spot), but will
+        almost certainly be wrong for <code>observations.csv</code> (7.7GB raw, likely 1–2GB+ compressed) —
+        forcing that to one file would kill read-parallelism for anyone querying it later. The partition count for
+        that table will be a separate, deliberately measured decision, not a copy-forward of today's setting.</p>
+      </div>
+
+    </section>
+
+    <section class="session" id="session4">
+      <div class="session-head">
+        <h2>Session 4 — Phase 2: Parameterizing the Transform + All Six Tables</h2>
+        <span class="date">Sep 2026</span>
+      </div>
+
+      <div class="topic decision" id="glue-parameterize">
+        <h3><span class="tag decision">Decision</span> One reusable Glue script instead of six near-duplicates</h3>
+        <p>Generalized <code>transform_encounter.py</code> into <code>transform_table.py</code>: the table name
+        becomes a Glue job argument (<code>TABLE_NAME</code>) instead of being hardcoded, so the same script and
+        the same Terraform-managed job serve every table.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>args = getResolvedOptions(sys.argv, ['JOB_NAME', 'TABLE_NAME'])
+...
+table_name = args['TABLE_NAME']
+source_path = f"s3://carepulse-raw-preetham-2026/{table_name}.csv"
+output_path = f"s3://carepulse-raw-preetham-2026/curated/{table_name}/"</code></pre></div>
+        <div class="why"><b>Directly answers the "reusable ETL framework" interview question already in these
+        notes</b> — one generic transform, config-driven via a runtime argument, rather than copy-pasting a new
+        script per table. Deliberately left <code>repartition(1)</code> unparameterized for now: no point
+        generalizing a setting before there's a real, measured number to generalize it <i>to</i>.</div>
+      </div>
+
+      <div class="topic error" id="glue-getresolvedoptions-bug">
+        <h3><span class="tag error">Gotcha</span> <code>getResolvedOptions()</code> — two lists passed instead of one</h3>
+        <p>First attempt: <code>getResolvedOptions(sys.argv, ['JOB_NAME'],['TABLE_NAME'])</code> — three positional
+        arguments (the argv, plus two separate lists), when the function signature wants exactly two: argv, and
+        <i>one</i> list containing every option name.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code># Wrong — two separate list arguments:
+getResolvedOptions(sys.argv, ['JOB_NAME'],['TABLE_NAME'])
+# Right — one list containing both names:
+getResolvedOptions(sys.argv, ['JOB_NAME', 'TABLE_NAME'])</code></pre></div>
+        <div class="why">Error was exact and immediately diagnostic: <code>TypeError: getResolvedOptions() takes 2
+        positional arguments but 3 were given</code> — reading the error literally (count the arguments actually
+        passed) found the bug faster than guessing at the fix.</div>
+      </div>
+
+      <div class="topic decision" id="terraform-rename-replace">
+        <h3><span class="tag decision">Concept, proven live</span> Terraform block label vs. resource <code>name</code> attribute — two different things</h3>
+        <p>Editing only the Glue job's <i>contents</i> (script path) while keeping the Terraform block label
+        unchanged produced a clean <code>1 to change</code> in-place update. Separately renaming the AWS-facing
+        <code>name</code> attribute itself (<code>carepulse-transform-encounters</code> → <code>carepulse-transform-table</code>)
+        produced a full <code>-/+ destroy and then create replacement</code> instead — because Glue job names are
+        immutable in AWS, so Terraform has no in-place path for that specific change.</p>
+        <div class="why"><b>The plan output explains itself, if you read it:</b> Terraform prints
+        <code># forces replacement</code> directly next to whichever attribute triggered the destroy/recreate —
+        no guessing needed about why a plan shows one shape versus another.</div>
+        <p style="margin-top:8px"><b>Verified safe before applying:</b> confirmed no job was <code>RUNNING</code>
+        under the old name before destroying it, and confirmed separately that destroying the job resource does
+        NOT touch anything the job already produced — S3 output objects are a wholly separate resource, unaffected
+        by deleting the job definition that created them.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You renamed a Terraform-managed resource and the plan showed "destroy and recreate" instead of an in-place update. Why?</p>
+        <p class="a">Depends which "name" changed. The Terraform block label (<code>resource "type" "label"</code>)
+        is purely an internal reference Terraform uses in state and in your files — renaming just that has zero
+        effect on the real AWS resource, since Terraform tracks resources by their state entry, not by how you
+        label the block. But if the change touches an attribute AWS itself treats as immutable — like a Glue job's
+        <code>name</code> field — Terraform has no API call that renames it in place, so it has to destroy the old
+        one and create a new one with the new name. The plan output names the exact attribute forcing this with
+        <code># forces replacement</code>, so you don't have to guess.</p>
+      </div>
+
+      <div class="topic decision" id="six-tables-done">
+        <h3><span class="tag decision">Verified</span> All six raw tables transformed — one script, six runs</h3>
+        <table>
+          <tr><th>Table</th><th>Output size</th><th>Notes</th></tr>
+          <tr><td>patients</td><td>7.9 MB</td><td></td></tr>
+          <tr><td>conditions</td><td>49.7 MB</td><td></td></tr>
+          <tr><td>medications</td><td>106.7 MB</td><td></td></tr>
+          <tr><td>encounters</td><td>189.0 MB</td><td>~1.08GB source, ~6x compression</td></tr>
+          <tr><td>procedures</td><td>263.1 MB</td><td></td></tr>
+          <tr><td>observations</td><td>383.0 MB</td><td>7.7GB source, 43,551,685 rows, ~20x compression</td></tr>
+        </table>
+        <div class="why"><b>Every run used the identical job, script, and worker configuration</b> — only the
+        <code>--TABLE_NAME</code> argument changed per run. That's the parameterization actually paying off: zero
+        new code or Terraform resources needed across five additional tables beyond the first.</div>
+      </div>
+
+      <div class="topic decision" id="observations-baseline">
+        <h3><span class="tag decision">Verified — a genuinely surprising result</span> <code>observations.csv</code> baseline: no tuning needed</h3>
+        <p>Deliberately ran the largest table (7.7GB raw) with <i>unmodified</i> settings — same
+        <code>G.1X × 2</code> workers, same <code>repartition(1)</code> — specifically to get a real, unbiased
+        baseline before assuming it would need bigger compute.</p>
+        <table>
+          <tr><th>Metric</th><th>Value</th></tr>
+          <tr><td>Execution time</td><td>265 seconds (4.4 min) — well under the 10-min timeout</td></tr>
+          <tr><td>DPU-seconds</td><td>530 (= 2 DPUs × 265s — both workers genuinely active the whole run)</td></tr>
+          <tr><td>Output</td><td>383MB, single file, 43,551,685 rows, 9 columns</td></tr>
+        </table>
+        <div class="why"><b>The result contradicted the working assumption</b> — expected this table to need more
+        compute or hit the timeout, given it's ~30x larger than anything else transformed. It didn't. Verified the
+        row count via Parquet's own metadata footer (<code>pyarrow.parquet.ParquetFile(...).metadata.num_rows</code>
+        — cheap, doesn't scan the whole file) rather than trusting "SUCCEEDED" alone, since a silently-truncated
+        write would also report success.</div>
+        <p style="margin-top:8px"><b>Real lesson, not just a data point:</b> raw source file size is a poor proxy
+        for actual processing cost. This table's high row count and low-cardinality repeated values (lab/vital
+        codes, units) made it both highly compressible <i>and</i> cheap for Spark to process — the 20x compression
+        ratio and the fast runtime are the same underlying property showing up twice, not two separate lucky
+        breaks.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You assumed your largest source file would need the most tuning. It didn't. What does that tell you?</p>
+        <p class="a">Raw file size on disk isn't the same as processing cost — row count, column cardinality, and
+        how compressible the data is all matter more than byte count alone. In my case, a 7.7GB CSV became a
+        383MB Parquet file in under 5 minutes on the smallest possible Glue worker configuration, because it had
+        43 million rows of highly repetitive, low-cardinality values — exactly what columnar storage and Snappy
+        compression handle best. I don't assume which table needs tuning ahead of time; I measure each one and let
+        the actual numbers, not file size, decide where optimization effort is worth spending.</p>
+      </div>
+
+      <div class="topic error" id="schema-inference-gap">
+        <h3><span class="tag error">Open item, not yet fixed</span> Every column in every curated table is typed as <code>string</code></h3>
+        <p>Inspected <code>conditions</code> and <code>observations</code> output directly with pandas/pyarrow —
+        every single column came back as <code>string</code>, including <code>START</code>/<code>STOP</code>/<code>DATE</code>
+        (genuinely dates) and <code>VALUE</code> in observations (genuinely numeric for most vitals/labs).</p>
+        <div class="why"><b>Root cause:</b> <code>spark.read.option("header","true").csv(...)</code> never sets
+        <code>inferSchema</code> and never declares an explicit <code>StructType</code> — Spark's safe default is
+        "everything is a string" absent either. This is the exact "schema inference vs. predefined schema"
+        interview question from earlier notes, now showing up as a real, measured gap in the actual pipeline
+        rather than a hypothetical.</p>
+        <p style="margin-top:8px"><b>Deliberately deferred, not forgotten:</b> fixing this means hand-writing a
+        <code>StructType</code> per table (the "production-correct" answer already given in interview prep) —
+        real work, planned as a dedicated pass across all six tables rather than done piecemeal mid-session.</p>
+      </div>
+
+      </section>
+
+  </main>
+</div>
+
+<footer>
+  <b>CarePulse</b> — Hospital Readmission Risk Pipeline. Personal interview-prep log, updated at the end of each
+  build session. Target role: Software Engineer III — ETL/PySpark | AWS | Snowflake | Python | SQL.
+</footer>
+
+<script>
+function cp(btn){
+  const code = btn.parentElement.querySelector('code');
+  const text = code.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent; btn.textContent='copied ✓'; btn.classList.add('done');
+    setTimeout(()=>{btn.textContent=old; btn.classList.remove('done');},1400);
+  }).catch(()=>{btn.textContent='press Ctrl+C';});
+}
+
+(function(){
+  const q=document.getElementById('q');
+  const clear=document.getElementById('clear');
+  const count=document.getElementById('count');
+  const noRes=document.getElementById('noResults');
+  const units=[...document.querySelectorAll('.topic, .iq')];
+  units.forEach(el=>el.dataset.orig=el.innerHTML);
+
+  function stripMarks(){ units.forEach(el=>{ if(el.dataset.orig) el.innerHTML=el.dataset.orig; }); }
+  function esc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+  function highlight(el, re){
+    const walk=document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode:n=> n.parentElement.closest('pre')||n.parentElement.tagName==='BUTTON'
+        ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const nodes=[]; while(walk.nextNode()) nodes.push(walk.currentNode);
+    nodes.forEach(n=>{
+      if(!re.test(n.nodeValue)) return;
+      const span=document.createElement('span');
+      span.innerHTML=n.nodeValue.replace(re,'<mark>$1</mark>');
+      n.replaceWith(span);
+    });
+  }
+
+  let matches = [];
+  let currentIndex = -1;
+
+  function clearCurrent(){ matches.forEach(m=>m.classList.remove('current')); }
+
+  function goToMatch(i){
+    if(!matches.length) return;
+    currentIndex = ((i % matches.length) + matches.length) % matches.length;
+    clearCurrent();
+    const m = matches[currentIndex];
+    m.classList.add('current');
+    m.scrollIntoView({behavior:'smooth', block:'center'});
+    count.textContent = (currentIndex+1) + ' of ' + matches.length;
+  }
+
+  function run(term){
+    term=term.trim().toLowerCase();
+    stripMarks();
+    matches = [];
+    currentIndex = -1;
+    if(!term){
+      document.body.classList.remove('searching');
+      units.forEach(u=>u.classList.remove('s-hidden'));
+      noRes.style.display='none'; count.textContent=''; return;
+    }
+    document.body.classList.add('searching');
+    let hits=0;
+    const words=term.split(/\s+/).filter(Boolean);
+    const res=words.map(w=>new RegExp('('+esc(w)+')','gi'));
+    units.forEach(el=>{
+      const txt=el.textContent.toLowerCase();
+      const all=words.every(w=>txt.includes(w));
+      if(all){ el.classList.remove('s-hidden'); hits++; res.forEach(re=>highlight(el, re)); }
+      else el.classList.add('s-hidden');
+    });
+    noRes.style.display = hits? 'none':'block';
+    matches = [...document.querySelectorAll('mark')];
+    if(matches.length){
+      goToMatch(0);
+    } else {
+      count.textContent = hits? hits+' match'+(hits>1?'es':'') : '';
+    }
+  }
+
+  let t;
+  q.addEventListener('input',()=>{clearTimeout(t); t=setTimeout(()=>run(q.value),120);});
+  clear.addEventListener('click',()=>{q.value='';run('');q.focus();});
+  q.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ q.value=''; run(''); q.blur(); return; }
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(!matches.length) return;
+      if(e.shiftKey) goToMatch(currentIndex-1);
+      else goToMatch(currentIndex+1);
+    }
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='/' && document.activeElement!==q){e.preventDefault(); q.focus();}
+  });
+})();
+</script>
+</body></html>
