@@ -1,3 +1,6 @@
+# Superseded by transform_table.py — kept to show the parameterization refactor.
+# This version hardcoded "encounters" as the table name; transform_table.py
+# generalizes this to accept any table via the TABLE_NAME job argument.
 import sys
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
