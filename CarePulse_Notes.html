@@ -79,6 +79,9 @@ nav.toc .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c
 
 /* code */
 .code{position:relative;background:#1c1a14;border-radius:12px;margin:12px 0;overflow:hidden}
+.diagram-wrap{border-radius:12px;overflow:hidden;border:1px solid rgba(21,22,17,.12);margin:14px 0;background:#fff}
+.diagram-wrap img{width:100%;height:auto;display:block}
+.diagram-caption{font-size:.8rem;color:var(--mute);text-align:center;padding:8px 10px;background:var(--aliceblue)}
 .code pre{margin:0;padding:16px 18px;overflow-x:auto}
 .code code{background:none;color:#fbe8d0;padding:0;font-size:.8rem;line-height:1.6;white-space:pre}
 .copy{position:absolute;top:8px;right:8px;font-size:.66rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#fbe8d0;background:rgba(246,188,124,.25);border:1px solid rgba(246,188,124,.35);padding:4px 10px;border-radius:6px;cursor:pointer}
@@ -135,10 +138,10 @@ footer b{color:var(--onyx)}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 2</span>
+    <span class="meta-pill">Sessions: 5</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
-    <span class="meta-pill">Phase 2: Glue/PySpark — encounters.csv transform verified</span>
+    <span class="meta-pill">Phase 2: ✓ all six tables typed (explicit schemas) &amp; verified</span>
   </div>
 </header>
 
@@ -156,128 +159,148 @@ footer b{color:var(--onyx)}
     <h2>Architecture — current state</h2>
     <p class="sub">Solid teal = built and verified. Dashed grey = planned, not yet built. Diagram updates every session.</p>
     <div class="arch-svg-wrap">
-<svg viewBox="0 0 1180 560" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:'Segoe UI',sans-serif">
+<svg viewBox="0 0 1180 580" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:'Segoe UI',sans-serif">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,6 L9,3 z" fill="#F6BC7C"/>
+      <path d="M0,0 L0,6 L9,3 z" fill="#151611"/>
     </marker>
     <marker id="arrowGrey" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#a8b0ba"/>
     </marker>
+    <linearGradient id="caramelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F9CD9A"/>
+      <stop offset="1" stop-color="#F2AB63"/>
+    </linearGradient>
+    <linearGradient id="onyxGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232320"/>
+      <stop offset="1" stop-color="#151611"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#151611" flood-opacity="0.22"/>
+    </filter>
+    <filter id="softShadowSm" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#151611" flood-opacity="0.16"/>
+    </filter>
   </defs>
 
+  <!-- phase group background panels -->
+  <rect x="8" y="38" width="184" height="220" rx="20" fill="#D9EAFA" opacity=".55"/>
+  <rect x="318" y="38" width="184" height="510" rx="20" fill="#F6BC7C" opacity=".10"/>
+  <rect x="688" y="38" width="174" height="370" rx="20" fill="#7d8a96" opacity=".07"/>
+  <rect x="948" y="78" width="174" height="360" rx="20" fill="#7d8a96" opacity=".07"/>
+
   <!-- section labels -->
-  <text x="20" y="24" font-size="12" font-weight="800" fill="#7d8a96" letter-spacing="2">LOCAL MACHINE</text>
-  <text x="330" y="24" font-size="12" font-weight="800" fill="#7d8a96" letter-spacing="2">AWS — BUILT (Phase 0)</text>
-  <text x="700" y="24" font-size="12" font-weight="800" fill="#a8b0ba" letter-spacing="2">AWS — PLANNED</text>
-  <text x="960" y="24" font-size="12" font-weight="800" fill="#a8b0ba" letter-spacing="2">SNOWFLAKE + ML — PLANNED</text>
+  <text x="24" y="24" font-size="11.5" font-weight="700" fill="#5a6773" letter-spacing="1.4">LOCAL MACHINE</text>
+  <text x="334" y="24" font-size="11.5" font-weight="700" fill="#8a5a26" letter-spacing="1.4">AWS · BUILT — PHASE 0–2</text>
+  <text x="704" y="24" font-size="11.5" font-weight="700" fill="#8a95a0" letter-spacing="1.4">AWS · PLANNED</text>
+  <text x="964" y="24" font-size="11.5" font-weight="700" fill="#8a95a0" letter-spacing="1.4">SNOWFLAKE + ML · PLANNED</text>
 
   <!-- ============ LOCAL ============ -->
-  <!-- Synthea box -->
-  <rect x="20" y="50" width="150" height="90" rx="14" fill="#151611"/>
-  <circle cx="95" cy="85" r="16" fill="#F6BC7C"/>
-  <path d="M88,85 l5,6 l10,-12" stroke="#151611" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="95" y="118" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">Synthea</text>
-  <text x="95" y="132" font-size="9.5" fill="#F6BC7C" text-anchor="middle">Java · 57,538 patients</text>
+  <rect x="20" y="50" width="150" height="90" rx="16" fill="url(#onyxGrad)" filter="url(#softShadow)"/>
+  <circle cx="95" cy="83" r="15" fill="#F6BC7C"/>
+  <path d="M88,83 l5,6 l10,-12" stroke="#151611" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="95" y="115" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">Synthea</text>
+  <text x="95" y="129" font-size="9" fill="#F6BC7C" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">57,538 patients</text>
 
-  <!-- CSV files -->
-  <rect x="20" y="170" width="150" height="70" rx="14" fill="#fff" stroke="#F6BC7C" stroke-width="2.5"/>
-  <rect x="70" y="188" width="20" height="26" rx="2" fill="#F6BC7C"/>
-  <rect x="94" y="188" width="20" height="26" rx="2" fill="#F6BC7C" opacity=".6"/>
-  <text x="95" y="230" font-size="12" font-weight="800" fill="#151611" text-anchor="middle">6 CSV files</text>
-  <text x="95" y="243" font-size="9" fill="#7d8a96" text-anchor="middle">~12 GB, patients→observations</text>
+  <rect x="20" y="170" width="150" height="70" rx="16" fill="#fff" stroke="#F6BC7C" stroke-width="2" filter="url(#softShadowSm)"/>
+  <rect x="68" y="188" width="18" height="25" rx="3" fill="#F6BC7C"/>
+  <rect x="90" y="188" width="18" height="25" rx="3" fill="#F6BC7C" opacity=".55"/>
+  <rect x="112" y="188" width="18" height="25" rx="3" fill="#F6BC7C" opacity=".3"/>
+  <text x="95" y="231" font-size="11.5" font-weight="700" fill="#151611" text-anchor="middle">6 CSV files</text>
+  <text x="95" y="243" font-size="8.5" fill="#7d8a96" text-anchor="middle">~12 GB · patients→observations</text>
 
-  <line x1="95" y1="140" x2="95" y2="168" stroke="#F6BC7C" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M95,140 C95,154 95,156 95,168" stroke="#F6BC7C" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
 
-  <!-- arrow local -> S3 -->
-  <line x1="172" y1="205" x2="325" y2="120" stroke="#F6BC7C" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="1,0"/>
-  <text x="215" y="150" font-size="9.5" fill="#151611" font-weight="700" transform="rotate(-24 215 150)">✓ aws s3 cp --recursive</text>
+  <path d="M172,200 C240,175 265,140 325,108" stroke="#F6BC7C" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="200" y="158" font-size="9" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">aws s3 cp --recursive</text>
 
   <!-- ============ AWS BUILT ============ -->
-  <!-- S3 raw bucket -->
-  <rect x="330" y="50" width="160" height="90" rx="14" fill="#F6BC7C"/>
-  <path d="M375,68 h30 a6,6 0 0 1 6,6 v6 h-42 v-6 a6,6 0 0 1 6,-6 z" fill="#151611"/>
-  <rect x="369" y="80" width="42" height="26" rx="4" fill="#151611"/>
-  <path d="M369,86 h42 M369,94 h42 M369,102 h42" stroke="#F6BC7C" stroke-width="1.5"/>
-  <text x="410" y="118" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">S3: carepulse-raw</text>
-  <text x="410" y="131" font-size="9" fill="#151611" text-anchor="middle">✓ 12.15 GB, 13 files loaded</text>
+  <rect x="330" y="50" width="160" height="90" rx="16" fill="url(#caramelGrad)" filter="url(#softShadow)"/>
+  <path d="M378,66 h28 a6,6 0 0 1 6,6 v6 h-40 v-6 a6,6 0 0 1 6,-6 z" fill="#151611"/>
+  <rect x="371" y="78" width="40" height="26" rx="4" fill="#151611"/>
+  <path d="M371,84 h40 M371,92 h40 M371,100 h40" stroke="#F6BC7C" stroke-width="1.3"/>
+  <text x="410" y="117" font-size="12" font-weight="700" fill="#151611" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">carepulse-raw</text>
+  <circle cx="466" cy="63" r="9" fill="#151611"/>
+  <path d="M462,63 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="410" y="130" font-size="8.5" fill="#4a3218" text-anchor="middle">12.15 GB · 13 files loaded</text>
 
-  <!-- S3 tfstate bucket -->
-  <rect x="330" y="160" width="160" height="80" rx="14" fill="#F6BC7C"/>
-  <rect x="369" y="185" width="42" height="26" rx="4" fill="#151611"/>
-  <path d="M369,191 h42 M369,199 h42" stroke="#F6BC7C" stroke-width="1.5"/>
-  <text x="410" y="228" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">S3: carepulse-tfstate</text>
-  <text x="410" y="240" font-size="9" fill="#151611" text-anchor="middle">versioned, remote state</text>
+  <rect x="330" y="160" width="160" height="80" rx="16" fill="url(#caramelGrad)" filter="url(#softShadow)"/>
+  <rect x="371" y="185" width="40" height="26" rx="4" fill="#151611"/>
+  <path d="M371,191 h40 M371,199 h40" stroke="#F6BC7C" stroke-width="1.3"/>
+  <text x="410" y="228" font-size="12" font-weight="700" fill="#151611" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">carepulse-tfstate</text>
+  <circle cx="466" cy="173" r="9" fill="#151611"/>
+  <path d="M462,173 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="410" y="240" font-size="8.5" fill="#4a3218" text-anchor="middle">versioned · remote state</text>
 
-  <!-- DynamoDB lock table -->
-  <rect x="330" y="260" width="160" height="80" rx="14" fill="#F6BC7C"/>
-  <ellipse cx="410" cy="285" rx="20" ry="7" fill="#151611"/>
-  <path d="M390,285 v18 a20,7 0 0 0 40,0 v-18" fill="#151611"/>
-  <ellipse cx="410" cy="303" rx="20" ry="7" fill="none" stroke="#F6BC7C" stroke-width="1.5"/>
-  <text x="410" y="328" font-size="12.5" font-weight="800" fill="#151611" text-anchor="middle">DynamoDB locks</text>
+  <rect x="330" y="260" width="160" height="80" rx="16" fill="url(#caramelGrad)" filter="url(#softShadow)"/>
+  <ellipse cx="410" cy="284" rx="19" ry="7" fill="#151611"/>
+  <path d="M391,284 v18 a19,7 0 0 0 38,0 v-18" fill="#151611"/>
+  <ellipse cx="410" cy="302" rx="19" ry="7" fill="none" stroke="#F6BC7C" stroke-width="1.5"/>
+  <text x="410" y="327" font-size="12" font-weight="700" fill="#151611" text-anchor="middle">DynamoDB locks</text>
+  <circle cx="466" cy="273" r="9" fill="#151611"/>
+  <path d="M462,273 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- IAM -->
-  <rect x="330" y="360" width="160" height="80" rx="14" fill="#fff" stroke="#F6BC7C" stroke-width="2.5"/>
-  <circle cx="395" cy="392" r="12" fill="#151611"/>
-  <path d="M395,404 c-10,0 -16,6 -16,14 h32 c0,-8 -6,-14 -16,-14 z" fill="#151611"/>
-  <path d="M418,385 l3,3 l6,-7" stroke="#F6BC7C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="410" y="424" font-size="11.5" font-weight="800" fill="#151611" text-anchor="middle">carepulse-admin</text>
-  <text x="410" y="435" font-size="8.5" fill="#7d8a96" text-anchor="middle">IAM + MFA (root locked away)</text>
+  <rect x="330" y="360" width="160" height="80" rx="16" fill="#fff" stroke="#F6BC7C" stroke-width="2" filter="url(#softShadowSm)"/>
+  <path d="M395,378 l16,7 v13 c0,10 -7,17 -16,20 c-9,-3 -16,-10 -16,-20 v-13 z" fill="#151611"/>
+  <path d="M388,394 l4,4.5 l10,-11" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="410" y="423" font-size="11" font-weight="700" fill="#151611" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">carepulse-admin</text>
+  <text x="410" y="435" font-size="8" fill="#7d8a96" text-anchor="middle">IAM + MFA · root locked away</text>
 
-  <!-- terraform arrows into all 3 -->
-  <text x="290" y="200" font-size="10.5" font-weight="800" fill="#151611" text-anchor="middle" transform="rotate(-90 290 200)">terraform apply</text>
+  <text x="290" y="200" font-size="9.5" font-weight="700" fill="#8a5a26" text-anchor="middle" transform="rotate(-90 290 200)" font-family="ui-monospace,Consolas,monospace">terraform apply</text>
 
-  <!-- Lambda: carepulse-validate — DEPLOYED & LIVE -->
-  <rect x="330" y="460" width="160" height="80" rx="14" fill="#F6BC7C"/>
-  <rect x="378" y="480" width="24" height="32" rx="4" fill="#151611"/>
-  <path d="M390,485 l-7,9 h5 l-3,8 l9,-11 h-5 z" fill="#F6BC7C"/>
-  <text x="410" y="524" font-size="11.5" font-weight="800" fill="#151611" text-anchor="middle">Lambda: carepulse-validate</text>
-  <text x="410" y="536" font-size="8.5" fill="#151611" text-anchor="middle">✓ live · accept/reject/quarantine</text>
+  <rect x="330" y="460" width="160" height="80" rx="16" fill="url(#caramelGrad)" filter="url(#softShadow)"/>
+  <rect x="380" y="479" width="22" height="30" rx="5" fill="#151611"/>
+  <path d="M391,484 l-6,8 h4 l-3,7 l8,-10 h-4 z" fill="#F6BC7C"/>
+  <text x="410" y="524" font-size="11" font-weight="700" fill="#151611" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">carepulse-validate</text>
+  <circle cx="466" cy="473" r="9" fill="#151611"/>
+  <path d="M462,473 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="410" y="536" font-size="8" fill="#4a3218" text-anchor="middle">live · accept / reject / quarantine</text>
 
-  <line x1="410" y1="140" x2="410" y2="458" stroke="#151611" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-  <text x="425" y="300" font-size="9" fill="#151611" font-weight="700" transform="rotate(90 425 300)">S3 ObjectCreated event</text>
+  <path d="M410,140 C410,280 300,300 300,400 C300,470 330,470 328,500" stroke="#151611" stroke-width="2" stroke-dasharray="1,5" stroke-linecap="round" fill="none" marker-end="url(#arrow)"/>
+  <text x="248" y="345" font-size="8.5" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">s3:ObjectCreated</text>
 
   <!-- ============ AWS PLANNED ============ -->
-  <rect x="700" y="50" width="150" height="80" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <rect x="738" y="70" width="42" height="30" rx="4" fill="none" stroke="#a8b0ba" stroke-width="2"/>
-  <text x="775" y="118" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">AWS Glue (PySpark)</text>
+  <rect x="700" y="50" width="150" height="80" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <rect x="738" y="70" width="42" height="30" rx="5" fill="none" stroke="#a8b0ba" stroke-width="1.75"/>
+  <circle cx="759" cy="85" r="9" fill="none" stroke="#a8b0ba" stroke-width="1.5"/>
+  <path d="M755,85 h8 M759,81 v8" stroke="#a8b0ba" stroke-width="1.5"/>
+  <text x="775" y="118" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">AWS Glue (PySpark)</text>
 
-  <rect x="700" y="150" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="775" y="188" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">S3 curated</text>
-  <text x="775" y="202" font-size="8.5" fill="#a8b0ba" text-anchor="middle">Parquet, partitioned</text>
+  <rect x="700" y="150" width="150" height="70" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="775" y="188" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">S3 curated</text>
+  <text x="775" y="201" font-size="8" fill="#a8b0ba" text-anchor="middle">Parquet · partitioned</text>
 
-  <rect x="700" y="240" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="775" y="278" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Athena</text>
-  <text x="775" y="292" font-size="8.5" fill="#a8b0ba" text-anchor="middle">ad-hoc validation</text>
+  <rect x="700" y="240" width="150" height="70" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="775" y="278" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">Athena</text>
+  <text x="775" y="291" font-size="8" fill="#a8b0ba" text-anchor="middle">ad-hoc validation</text>
 
-  <rect x="700" y="330" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="775" y="368" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">SageMaker</text>
-  <text x="775" y="382" font-size="8.5" fill="#a8b0ba" text-anchor="middle">XGBoost training</text>
+  <rect x="700" y="330" width="150" height="70" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="775" y="368" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">SageMaker</text>
+  <text x="775" y="381" font-size="8" fill="#a8b0ba" text-anchor="middle">XGBoost training</text>
 
   <!-- ============ SNOWFLAKE + ML PLANNED ============ -->
-  <rect x="960" y="90" width="150" height="80" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="1035" y="128" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Snowflake</text>
-  <text x="1035" y="142" font-size="8.5" fill="#a8b0ba" text-anchor="middle">RAW→CORE dynamic tables</text>
+  <rect x="960" y="90" width="150" height="80" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="1035" y="128" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">Snowflake</text>
+  <text x="1035" y="141" font-size="8" fill="#a8b0ba" text-anchor="middle">RAW→CORE dynamic tables</text>
 
-  <rect x="960" y="190" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="1035" y="228" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">Feature Store</text>
-  <text x="1035" y="242" font-size="8.5" fill="#a8b0ba" text-anchor="middle">30-day readmit label</text>
+  <rect x="960" y="190" width="150" height="70" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="1035" y="228" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">Feature Store</text>
+  <text x="1035" y="241" font-size="8" fill="#a8b0ba" text-anchor="middle">30-day readmit label</text>
 
-  <rect x="960" y="280" width="150" height="70" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="1035" y="318" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">QuickSight</text>
-  <text x="1035" y="332" font-size="8.5" fill="#a8b0ba" text-anchor="middle">dashboards</text>
+  <rect x="960" y="280" width="150" height="70" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="1035" y="318" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">QuickSight</text>
+  <text x="1035" y="331" font-size="8" fill="#a8b0ba" text-anchor="middle">dashboards</text>
 
-  <rect x="960" y="370" width="150" height="60" rx="14" fill="none" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="6,4"/>
-  <text x="1035" y="403" font-size="11.5" font-weight="700" fill="#7d8a96" text-anchor="middle">SNS alerts</text>
+  <rect x="960" y="370" width="150" height="60" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <text x="1035" y="403" font-size="11" font-weight="600" fill="#7d8a96" text-anchor="middle">SNS alerts</text>
 
-  <!-- planned connecting arrows -->
-  <line x1="490" y1="90" x2="698" y2="90" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="850" y1="90" x2="958" y2="130" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="775" y1="130" x2="775" y2="148" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="775" y1="220" x2="775" y2="238" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="775" y1="310" x2="775" y2="328" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="1035" y1="170" x2="1035" y2="188" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
-  <line x1="1035" y1="260" x2="1035" y2="278" stroke="#a8b0ba" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrowGrey)"/>
+  <path d="M490,90 C560,90 630,90 698,90" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M850,90 C900,90 920,110 958,128" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M775,130 C775,138 775,142 775,148" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M775,220 C775,228 775,232 775,238" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M775,310 C775,318 775,322 775,328" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M1035,170 C1035,178 1035,182 1035,188" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
+  <path d="M1035,260 C1035,268 1035,272 1035,278" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGrey)"/>
 </svg>
     </div>
     <div class="arch-legend">
@@ -322,6 +345,16 @@ footer b{color:var(--onyx)}
     <a href="#glue-9-files-mystery"><span class="dot"></span>9-files mystery</a>
     <a href="#glue-missing-delete-perm"><span class="dot"></span>Missing DeleteObject perm</a>
     <a href="#glue-final-verified"><span class="dot"></span>Transform verified</a>
+    <a href="#repo-github-setup"><span class="dot"></span>Git + GitHub setup</a>
+    <a href="#repo-diagram"><span class="dot"></span>Architecture diagram (repo)</a>
+    <a href="#session5"><span class="dot"></span>Session 5 — Explicit schemas</a>
+    <a href="#schema-typing"><span class="dot"></span>StructType per table</a>
+    <a href="#value-num"><span class="dot"></span>VALUE vs VALUE_NUM</a>
+    <a href="#schema-typing-runs"><span class="dot"></span>Six typed runs verified</a>
+    <a href="#schema-typing-cost"><span class="dot"></span>Cost of typing (+10%)</a>
+    <a href="#schema-typing-findings"><span class="dot"></span>Data findings</a>
+    <a href="#gitignore-nested-gotcha"><span class="dot"></span>.gitignore ** gotcha</a>
+    <a href="#session5-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -1361,7 +1394,8 @@ getResolvedOptions(sys.argv, ['JOB_NAME', 'TABLE_NAME'])</code></pre></div>
       </div>
 
       <div class="topic error" id="schema-inference-gap">
-        <h3><span class="tag error">Open item, not yet fixed</span> Every column in every curated table is typed as <code>string</code></h3>
+        <h3><span class="tag error">Resolved in Session 5</span> Every column in every curated table is typed as <code>string</code></h3>
+        <p><b>Update:</b> fixed with explicit per-table schemas — see <a href="#schema-typing">Session 5</a>.</p>
         <p>Inspected <code>conditions</code> and <code>observations</code> output directly with pandas/pyarrow —
         every single column came back as <code>string</code>, including <code>START</code>/<code>STOP</code>/<code>DATE</code>
         (genuinely dates) and <code>VALUE</code> in observations (genuinely numeric for most vitals/labs).</p>
@@ -1370,12 +1404,397 @@ getResolvedOptions(sys.argv, ['JOB_NAME', 'TABLE_NAME'])</code></pre></div>
         "everything is a string" absent either. This is the exact "schema inference vs. predefined schema"
         interview question from earlier notes, now showing up as a real, measured gap in the actual pipeline
         rather than a hypothetical.</p>
+        </div>
         <p style="margin-top:8px"><b>Deliberately deferred, not forgotten:</b> fixing this means hand-writing a
         <code>StructType</code> per table (the "production-correct" answer already given in interview prep) —
         real work, planned as a dedicated pass across all six tables rather than done piecemeal mid-session.</p>
       </div>
 
+      <div class="topic decision" id="repo-github-setup">
+        <h3><span class="tag decision">Decision</span> Repository setup — git init, .gitignore, GitHub push</h3>
+        <p>CarePulse had no version control at all until this point — unlike the Spotify project, which started
+        with a GitHub repo from day one. Set it up properly rather than pushing blind: built the
+        <code>.gitignore</code> first, verified exclusions with a dry run, only then committed.</p>
+        <table>
+          <tr><th>Excluded</th><th>Why</th></tr>
+          <tr><td><code>data-gen/*.jar</code></td><td>197MB Synthea binary — GitHub rejects files over 100MB outright; trivially re-downloadable</td></tr>
+          <tr><td><code>glue-transform/*.parquet</code></td><td>402MB generated output, not source</td></tr>
+          <tr><td><code>infra/.terraform/</code>, <code>terraform.tfstate*</code>, <code>tfplan</code></td><td>Local cache and stale state — remote S3 backend is the real source of truth; state should never go in git regardless (can contain resource ARNs, account IDs)</td></tr>
+          <tr><td><code>lambda-validate/venv/</code>, <code>__pycache__/</code>, <code>*.zip</code></td><td>Regeneratable environment and build artifacts</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>git init
+git add -n .          # dry run first — verify exclusions before staging anything real
+git add .
+git commit -m "Initial commit: CarePulse Phase 0-2"
+git remote add origin https://github.com/preethamsamatham/carepulse-pipeline
+git push -u origin master</code></pre></div>
+        <div class="why"><b>The dry-run step (<code>git add -n .</code>) is what actually matters here</b> — it
+        shows exactly what would be staged without touching anything, catching a bad <code>.gitignore</code>
+        pattern before a 400MB Parquet file lands in git history (where deleting it later doesn't remove it from
+        history — the same "verify before you commit" discipline used everywhere else in this project).</p>
+      </div>
+
+      <div class="topic decision" id="repo-diagram">
+        <h3><span class="tag decision">Verified</span> An independent tool confirms the architecture</h3>
+        <p>Ran the pushed repo through an auto-generating architecture-diagram tool (scans a GitHub repo's code and
+        infers the pipeline structure). Worth doing as a sanity check — if an external tool, reading only the code,
+        arrives at the same architecture being described in these notes, that's independent confirmation the
+        repository is coherent, not just internally consistent with itself.</p>
+        <div class="diagram-wrap" style="background:#fff;padding:10px 0">
+          <svg viewBox="0 0 900 640" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:'Segoe UI',sans-serif">
+  <defs>
+    <marker id="arrowB" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#151611"/>
+    </marker>
+    <marker id="arrowGreyB" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#a8b0ba"/>
+    </marker>
+    <linearGradient id="caramelGradB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F9CD9A"/>
+      <stop offset="1" stop-color="#F2AB63"/>
+    </linearGradient>
+    <linearGradient id="onyxGradB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232320"/>
+      <stop offset="1" stop-color="#151611"/>
+    </linearGradient>
+    <filter id="softShadowB" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#151611" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect x="16" y="16" width="500" height="160" rx="20" fill="#F6BC7C" opacity=".08"/>
+  <rect x="16" y="270" width="500" height="150" rx="20" fill="#D9EAFA" opacity=".55"/>
+  <rect x="16" y="450" width="500" height="172" rx="20" fill="#7d8a96" opacity=".07"/>
+
+  <text x="30" y="42" font-size="11" font-weight="700" fill="#8a5a26" letter-spacing="1.2">DATA QUALITY + TRANSFORMATION</text>
+  <text x="30" y="296" font-size="11" font-weight="700" fill="#5a6773" letter-spacing="1.2">S3 STORAGE</text>
+  <text x="30" y="476" font-size="11" font-weight="700" fill="#8a95a0" letter-spacing="1.2">PLANNED ANALYTICS</text>
+
+  <circle cx="680" cy="90" r="72" fill="url(#onyxGradB)" filter="url(#softShadowB)"/>
+  <circle cx="680" cy="73" r="14" fill="#F6BC7C"/>
+  <path d="M673,73 l5,6 l9,-11" stroke="#151611" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="680" y="103" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">Synthea</text>
+  <text x="680" y="116" font-size="9" fill="#F6BC7C" text-anchor="middle">Generator</text>
+
+  <rect x="40" y="50" width="200" height="100" rx="16" fill="url(#caramelGradB)" filter="url(#softShadowB)"/>
+  <rect x="60" y="70" width="24" height="32" rx="5" fill="#151611"/>
+  <path d="M73,76 l-7,9 h5 l-3,8 l9,-11 h-5 z" fill="#F6BC7C"/>
+  <text x="140" y="82" font-size="12.5" font-weight="700" fill="#151611" text-anchor="middle">Validation Lambda</text>
+  <text x="140" y="97" font-size="10" fill="#4a3218" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">[validate.py]</text>
+  <circle cx="213" cy="63" r="9" fill="#151611"/>
+  <path d="M209,63 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="140" y="130" font-size="8.5" fill="#4a3218" text-anchor="middle">accept · reject · quarantine</text>
+
+  <rect x="270" y="50" width="200" height="100" rx="16" fill="url(#caramelGradB)" filter="url(#softShadowB)"/>
+  <circle cx="300" cy="86" r="16" fill="none" stroke="#151611" stroke-width="3"/>
+  <path d="M300,72 v-5 M300,100 v5 M286,86 h-5 M314,86 h5 M290,76 l-4,-4 M310,76 l4,-4 M290,96 l-4,4 M310,96 l4,4" stroke="#151611" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="380" y="82" font-size="12.5" font-weight="700" fill="#151611" text-anchor="middle">Parameterized Glue Job</text>
+  <text x="380" y="97" font-size="10" fill="#4a3218" text-anchor="middle" font-family="ui-monospace,Consolas,monospace">[transform_table.py]</text>
+  <circle cx="443" cy="63" r="9" fill="#151611"/>
+  <path d="M439,63 l3,3.5 l6,-7" stroke="#F6BC7C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="380" y="130" font-size="8.5" fill="#4a3218" text-anchor="middle">one job · six tables</text>
+
+  <path d="M614,90 C540,60 460,58 372,56" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="500" y="55" font-size="8" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">triggers validation</text>
+
+  <rect x="40" y="320" width="140" height="90" rx="16" fill="#fff" stroke="#F2AB63" stroke-width="2"/>
+  <ellipse cx="110" cy="345" rx="17" ry="6" fill="#F2AB63"/>
+  <path d="M93,345 v14 a17,6 0 0 0 34,0 v-14" fill="#F2AB63"/>
+  <ellipse cx="110" cy="359" rx="17" ry="6" fill="none" stroke="#151611" stroke-width="1.3"/>
+  <text x="110" y="388" font-size="11" font-weight="700" fill="#151611" text-anchor="middle">S3 Quarantine</text>
+  <text x="110" y="400" font-size="7.5" fill="#7d8a96" text-anchor="middle">rejected files</text>
+
+  <rect x="200" y="320" width="140" height="90" rx="16" fill="url(#caramelGradB)" filter="url(#softShadowB)"/>
+  <ellipse cx="270" cy="345" rx="17" ry="6" fill="#151611"/>
+  <path d="M253,345 v14 a17,6 0 0 0 34,0 v-14" fill="#151611"/>
+  <ellipse cx="270" cy="359" rx="17" ry="6" fill="none" stroke="#F6BC7C" stroke-width="1.3"/>
+  <text x="270" y="388" font-size="11" font-weight="700" fill="#151611" text-anchor="middle">S3 Curated</text>
+  <text x="270" y="400" font-size="7.5" fill="#4a3218" text-anchor="middle">Parquet · six tables</text>
+
+  <rect x="360" y="320" width="140" height="90" rx="16" fill="url(#caramelGradB)" filter="url(#softShadowB)"/>
+  <ellipse cx="430" cy="345" rx="17" ry="6" fill="#151611"/>
+  <path d="M413,345 v14 a17,6 0 0 0 34,0 v-14" fill="#151611"/>
+  <ellipse cx="430" cy="359" rx="17" ry="6" fill="none" stroke="#F6BC7C" stroke-width="1.3"/>
+  <text x="430" y="388" font-size="11" font-weight="700" fill="#151611" text-anchor="middle">S3 Raw Zone</text>
+  <text x="430" y="400" font-size="7.5" fill="#4a3218" text-anchor="middle">12.15 GB · 6 tables</text>
+
+  <path d="M645,145 C580,220 500,280 448,318" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="560" y="245" font-size="8" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">generates CSVs</text>
+
+  <path d="M110,150 C105,220 108,270 110,318" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="70" y="240" font-size="8" fill="#151611" font-weight="700" transform="rotate(-90 70 240)">moves rejects</text>
+
+  <path d="M180,140 C260,200 350,260 415,318" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="230" y="230" font-size="8" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">reads samples</text>
+
+  <path d="M440,150 C440,220 435,270 435,318" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="450" y="230" font-size="8" fill="#151611" font-weight="700" transform="rotate(90 450 230)">reads six tables</text>
+  <path d="M370,150 C340,220 300,270 275,318" stroke="#151611" stroke-width="1.75" fill="none" marker-end="url(#arrowB)"/>
+  <text x="320" y="230" font-size="8" fill="#151611" font-weight="700" font-family="ui-monospace,Consolas,monospace">writes Parquet</text>
+
+  <rect x="40" y="500" width="220" height="90" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <path d="M150,520 l7,4 v9 l-7,4 l-7,-4 v-9 z" fill="none" stroke="#a8b0ba" stroke-width="1.75"/>
+  <path d="M150,528 l7,-4 M150,528 l-7,-4 M150,528 v9" stroke="#a8b0ba" stroke-width="1.5"/>
+  <text x="150" y="562" font-size="11.5" font-weight="600" fill="#7d8a96" text-anchor="middle">Snowflake Warehouse</text>
+  <text x="150" y="576" font-size="8" fill="#a8b0ba" text-anchor="middle">RAW → CORE dynamic tables</text>
+
+  <rect x="300" y="500" width="200" height="90" rx="16" fill="none" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="7,5"/>
+  <rect x="380" y="518" width="40" height="26" rx="4" fill="none" stroke="#a8b0ba" stroke-width="1.75"/>
+  <path d="M380,524 h40 M380,531 h40 M380,538 h40" stroke="#a8b0ba" stroke-width="1.3"/>
+  <text x="400" y="562" font-size="11.5" font-weight="600" fill="#7d8a96" text-anchor="middle">SageMaker Model</text>
+  <text x="400" y="576" font-size="8" fill="#a8b0ba" text-anchor="middle">30-day readmission risk</text>
+
+  <path d="M270,410 C220,450 180,470 150,498" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGreyB)"/>
+  <text x="180" y="465" font-size="8" fill="#7d8a96" font-weight="700">planned ingest</text>
+
+  <path d="M260,545 C280,545 280,545 298,545" stroke="#a8b0ba" stroke-width="1.75" stroke-dasharray="6,5" fill="none" marker-end="url(#arrowGreyB)"/>
+  <text x="262" y="537" font-size="7.5" fill="#7d8a96" font-weight="700">planned modeling</text>
+</svg>
+          <div class="diagram-caption">Redrawn to match — same relationships an independent repo-scan tool inferred, restyled to fit these notes</div>
+        </div>
+        <div class="why"><b>Matched correctly:</b> Lambda validation with the quarantine branch, the parameterized
+        Glue job reading all six tables, Snowflake and SageMaker correctly shown as planned rather than built.
+        Confirms the repo's code alone — without reading these notes — tells the same story documented here.</div>
+      </div>
+
       </section>
+
+    <section class="session" id="session5">
+      <div class="session-head">
+        <h2>Session 5 — Phase 2: Explicit Schemas for All Six Tables</h2>
+        <span class="date">Sep 24, 2026</span>
+      </div>
+
+      <div class="topic decision" id="schema-typing">
+        <h3><span class="tag decision">Decision</span> One <code>StructType</code> per table, stored as config — closes the all-string gap</h3>
+        <p>Resolves the <a href="#schema-inference-gap">open item from Session 4</a>. Before writing any schema, ran
+        <code>fetch_header_and_sample()</code> from <code>validate.py</code> against all six files in S3 (8KB range
+        reads, nearly free even for the 7.7GB file) to get the <i>real</i> column order and value formats rather
+        than writing schemas from memory — Synthea's column set varies by version.</p>
+        <p>The schemas live in a <code>SCHEMAS = {"patients": StructType(...), ...}</code> dict looked up by
+        <code>TABLE_NAME</code> — same pattern as <code>EXPECTED_COLUMNS</code> in <code>validate.py</code>, so the
+        one-script-six-tables design from Session 4 survives unchanged.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>spark.conf.set("spark.sql.session.timeZone", "UTC")
+
+df = (
+    spark.read
+    .option("header", "true")
+    .option("enforceSchema", "false")   # check header names against the schema
+    .option("mode", "FAILFAST")         # a value that won't cast aborts the job
+    .option("dateFormat", "yyyy-MM-dd")
+    .option("timestampFormat", "yyyy-MM-dd'T'HH:mm:ssX")
+    .schema(SCHEMAS[table_name])
+    .csv(source_path)
+)</code></pre></div>
+        <table>
+          <tr><th>Choice</th><th>Why</th></tr>
+          <tr><td><code>enforceSchema=false</code></td><td>With a header, Spark's default <i>ignores</i> header names and applies the schema <b>by position</b>. A schema written in the wrong order would put <code>PATIENT</code> values into <code>START</code> and still report SUCCEEDED. <code>false</code> makes Spark check the names.</td></tr>
+          <tr><td><code>mode=FAILFAST</code></td><td>Default <code>PERMISSIVE</code> turns an uncastable value into NULL with no error. FAILFAST aborts on the first bad value, so SUCCEEDED actually means every value parsed.</td></tr>
+          <tr><td>Two date formats</td><td><code>patients</code> + <code>conditions</code> use plain dates (<code>2026-03-24</code>); the other four use UTC timestamps (<code>2026-03-24T15:27:18Z</code>). Both options set on every read; each only applies to its own type.</td></tr>
+          <tr><td>Session timezone = UTC</td><td>Synthea timestamps end in <code>Z</code>. Without pinning, Spark renders them in the worker's local zone — a silent shift downstream.</td></tr>
+          <tr><td><code>ZIP</code>, <code>FIPS</code>, every <code>CODE</code> → <code>StringType</code></td><td>Identifiers, not quantities. Real sample ZIP <code>01086</code> would become <code>1086</code> as an integer — the leading-zero trap from the AWS/GCP interview doc, now seen in real data. LOINC codes like <code>8302-2</code> aren't numbers at all.</td></tr>
+          <tr><td>Money → <code>DecimalType(14,2)</code></td><td>Exact cents. <code>Double</code> can't represent most cent values exactly (<code>0.10+0.20 = 0.30000000000000004</code>) — matters once claim costs are summed over millions of rows.</td></tr>
+          <tr><td><code>LAT</code>/<code>LON</code> → <code>Double</code></td><td>Measurements — tiny float rounding is harmless there.</td></tr>
+        </table>
+        <div class="why"><b>Deliberately left out of this change:</b> PII columns (<code>SSN</code>, <code>DRIVERS</code>,
+        <code>PASSPORT</code>, names, addresses) still pass through untouched. Masking them is the next separate
+        change — one change at a time, so a failure has exactly one possible cause.</div>
+      </div>
+
+      <div class="topic decision" id="value-num">
+        <h3><span class="tag decision">Decision</span> <code>observations.VALUE</code> stays a string; <code>VALUE_NUM</code> is derived</h3>
+        <p><code>VALUE</code> is numeric for vitals/labs but text for findings like smoking status — the
+        <code>TYPE</code> column says which. So <code>VALUE</code> keeps its original text, and a new
+        <code>VALUE_NUM</code> (double) is filled only where <code>TYPE = 'numeric'</code>.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>df = df.withColumn(
+    "VALUE_NUM",
+    F.when(F.col("TYPE") == "numeric", F.col("VALUE").cast("double")),
+)</code></pre></div>
+        <div class="why"><b>Measured payoff:</b> 16,709,518 of 43,551,685 observations (<b>38%</b>) are text.
+        Typing <code>VALUE</code> as a plain <code>DoubleType</code> would have silently nulled all of them —
+        including smoking status, a real readmission-risk feature — while the job still reported SUCCEEDED.</div>
+      </div>
+
+      <div class="topic decision" id="schema-typing-runs">
+        <h3><span class="tag decision">Verified</span> All six tables typed — one script, six runs, all FAILFAST-clean</h3>
+        <table>
+          <tr><th>Table</th><th>Typed run time</th><th>Verification</th></tr>
+          <tr><td>patients</td><td>155s</td><td>Output schema + values inspected (below)</td></tr>
+          <tr><td>conditions</td><td>93s</td><td>FAILFAST pass (plain dates)</td></tr>
+          <tr><td>medications</td><td>138s</td><td>FAILFAST pass (first full-timestamp table)</td></tr>
+          <tr><td>encounters</td><td>not recorded</td><td>FAILFAST pass</td></tr>
+          <tr><td>procedures</td><td>143s</td><td>FAILFAST pass</td></tr>
+          <tr><td>observations</td><td><b>292s</b> (all-string baseline: 265s)</td><td>Row count, schema, <code>VALUE_NUM</code> logic inspected (below)</td></tr>
+        </table>
+        <p style="margin-top:10px"><b><code>patients</code> output, read directly from the Parquet file:</b></p>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td><code>BIRTHDATE</code>, <code>DEATHDATE</code></td><td><code>date</code>; <code>DEATHDATE</code> a real NULL for 50,000 living patients, set for 7,537</td></tr>
+          <tr><td><code>ZIP</code></td><td><code>string</code> — <code>01086</code> kept its leading zero</td></tr>
+          <tr><td><code>HEALTHCARE_EXPENSES</code> / <code>_COVERAGE</code></td><td><code>decimal(14,2)</code> — e.g. exactly <code>2469.48</code></td></tr>
+          <tr><td><code>INCOME</code> / <code>LAT</code>, <code>LON</code></td><td><code>int</code> / <code>double</code></td></tr>
+          <tr><td><code>Id</code></td><td>57,537 rows, 57,537 distinct</td></tr>
+        </table>
+        <p style="margin-top:10px"><b><code>observations</code> output:</b></p>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Row count</td><td><b>43,551,685</b> — identical to the all-string run; nothing dropped</td></tr>
+          <tr><td><code>TYPE</code> split</td><td>26,842,167 numeric + 16,709,518 text = 43,551,685</td></tr>
+          <tr><td>Numeric rows with NULL <code>VALUE_NUM</code></td><td><b>0</b> — every numeric value cast cleanly</td></tr>
+          <tr><td>Text rows with a <code>VALUE_NUM</code></td><td><b>0</b> — the <code>when()</code> logic is correct</td></tr>
+          <tr><td>Samples</td><td><code>50.9 cm</code> → 50.9; <code>"Never smoked tobacco (finding)"</code> → text kept, <code>VALUE_NUM</code> NULL</td></tr>
+        </table>
+        <div class="why"><b>Why inspect the file at all when every run said SUCCEEDED:</b> SUCCEEDED proves the
+        input parsed. It says nothing about whether the <i>output</i> carries the intended types, or whether a
+        derived column like <code>VALUE_NUM</code> is right — a cast to double returns NULL, it never errors. Same
+        "verify the state, don't trust the green checkmark" rule as the Spotify <code>LET</code> bug.</div>
+      </div>
+
+      <div class="topic decision" id="schema-typing-cost">
+        <h3><span class="tag decision">Metric</span> What typing cost: +10% runtime, +5% size — and a wrong prediction</h3>
+        <table>
+          <tr><th><code>observations</code> (7.7GB, 43.5M rows)</th><th>All-string</th><th>Typed</th><th>Change</th></tr>
+          <tr><td>Execution time</td><td>265s</td><td>292s</td><td>+27s (+10%)</td></tr>
+          <tr><td>Parquet output</td><td>383MB</td><td>403.5 MiB</td><td>≈ +5%</td></tr>
+        </table>
+        <p style="margin-top:10px">The extra time is parsing 43.5M timestamps, checking the header, and computing
+        <code>VALUE_NUM</code> per row. Still far inside the 10-minute timeout, even with <code>repartition(1)</code>
+        on 2 × G.1X workers.</p>
+        <div class="why"><b>A prediction the number overturned:</b> expected typed columns to compress
+        <i>smaller</i> (a timestamp is 8 bytes vs. a 20-character string). The file came out bigger — because
+        <code>VALUE_NUM</code> adds a whole new double column across 43.5M rows, outweighing any timestamp savings.
+        Second time in this project a confident number lost to a measured one (after the 3.6MB source-size mix-up
+        in Session 3).</div>
+      </div>
+
+      <div class="topic decision" id="schema-typing-findings">
+        <h3><span class="tag concept">Data findings</span> What the typed data revealed</h3>
+        <table>
+          <tr><th>Finding</th><th>Meaning</th></tr>
+          <tr><td>57,537 patients = 50,000 alive + 7,537 deceased</td><td>Synthea's <code>-p 50000</code> generates 50,000 <i>living</i> patients and keeps those who died along the way. Earlier notes said 57,538 — very likely the header line counted in a line count.</td></tr>
+          <tr><td><code>ZIP = '00000'</code> present</td><td>Synthea's "unknown" placeholder — a data-quality flag for a later layer, not a typing bug.</td></tr>
+          <tr><td><code>FIPS</code> NULL for 14,618 patients (25%)</td><td>Keeping it a string was right; any geography feature must handle the NULLs.</td></tr>
+          <tr><td>38% of observations are text</td><td>Justifies <code>VALUE</code> + <code>VALUE_NUM</code> over a single numeric column.</td></tr>
+          <tr><td><code>DATE</code> reads back as <code>timestamp[ns]</code> with no timezone</td><td>Spark 3.3 writes timestamps as legacy INT96 by default. Values are correct (UTC); revisit the Parquet timestamp format at the Snowflake/Athena stage.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="wrong-folder-gotcha">
+        <h3><span class="tag error">Gotcha</span> Relative paths depend on the folder you're standing in — hit twice</h3>
+        <p><b>1.</b> <code>python -c "from validate import ..."</code> from <code>C:\dev\carepulse</code> →
+        <code>ModuleNotFoundError: No module named 'validate'</code>. <b>2.</b> <code>aws s3 cp glue-transform\transform_table.py ...</code>
+        from <code>lambda-validate\</code> → <code>The user-provided path ... does not exist</code>.</p>
+        <div class="why"><b>Root cause:</b> both are relative paths, resolved against the current folder.
+        <code>import validate</code> looks for <code>validate.py</code> in the current folder (plus installed
+        packages); the S3 path was looked for under <code>lambda-validate\glue-transform\</code>. Fix: <code>cd</code>
+        to the right folder first — and for imports, activate the venv that has the dependencies
+        (<code>boto3</code>) too.</div>
+      </div>
+
+      <div class="topic error" id="old-script-gotcha">
+        <h3><span class="tag error">Gotcha</span> A job that would have "succeeded" with the old code</h3>
+        <p>After the failed upload above, <code>start-job-run</code> was still run. Glue executes the script at
+        <code>script_location</code> in S3 (<code>scripts/transform_table.py</code>, set in <code>main.tf</code>) —
+        not the local file — so that run used the <b>old all-string script</b>, finished SUCCEEDED, and overwrote
+        <code>curated/patients/</code> with untyped output.</p>
+        <div class="why"><b>Rule:</b> only run the next command once the previous one printed its expected
+        success line (here: <code>upload: ...</code>). A deploy step that silently didn't happen makes every later
+        green result meaningless. Also confirmed the new file was really in place before uploading with
+        <code>Select-String -Pattern "FAILFAST"</code>.</div>
+      </div>
+
+      <div class="topic error" id="gitignore-nested-gotcha">
+        <h3><span class="tag error">Gotcha</span> <code>*.parquet</code> doesn't match subfolders — a 423MB file almost got staged</h3>
+        <p>Downloaded verification copies into <code>glue-transform/check-patients/</code> and
+        <code>glue-transform/check-observations/</code>. <code>git status</code> listed both as untracked despite
+        the <code>glue-transform/*.parquet</code> rule.</p>
+        <div class="why"><b>Root cause:</b> in <code>.gitignore</code>, <code>*</code> matches within one folder
+        level only. <code>glue-transform/**/*.parquet</code> matches at any depth. Caught by reading
+        <code>git status</code> before staging — a <code>git add .</code> would have staged a file GitHub rejects
+        (over 100MB) and put it in history. The final push was 2.68 KiB, confirming nothing large went up.</div>
+      </div>
+
+      <div class="topic error" id="notification-scripts-gotcha">
+        <h3><span class="tag error">Open item</span> Script uploads wake the validate Lambda</h3>
+        <p>The raw bucket's S3 notification fires on <code>s3:ObjectCreated:*</code> with no filter, and Glue writes
+        both its script (<code>scripts/</code>) and its output (<code>curated/</code>) into that same bucket. Every
+        upload and every Parquet part file invokes <code>validate_file</code>, which returns SKIPPED — harmless,
+        but wasted invocations. Same "writes into the bucket it watches" shape as Spotify war story #16.</div>
+        <div class="why"><b>Fix options:</b> add <code>filter_suffix = ".csv"</code> to the notification in
+        <code>main.tf</code>, or move curated output and scripts to a separate bucket.</div>
+      </div>
+
+      <div class="topic" id="check-parquet-tool">
+        <h3><span class="tag concept">Technique</span> Verifying Parquet locally — <code>check_parquet.py</code> + a separate tools venv</h3>
+        <p>A small read-only checker (<code>glue-transform/check_parquet.py</code>, committed) prints row count,
+        schema, <code>TYPE</code> counts, the two <code>VALUE_NUM</code> consistency counts, and sample rows. It reads
+        only the <code>TYPE</code> and <code>VALUE_NUM</code> columns for full-table counts, so a 43.5M-row file
+        stays within laptop memory.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>deactivate
+python -m venv C:\dev\venv-tools
+C:\dev\venv-tools\Scripts\Activate.ps1
+pip install pyarrow
+python glue-transform\check_parquet.py glue-transform\check-observations\&lt;part-file&gt;.parquet</code></pre></div>
+        <div class="why"><b>Why a separate venv outside the repo:</b> <code>lambda-validate\venv</code> belongs to
+        the Lambda — installing <code>pyarrow</code> there would bloat it. <code>C:\dev\venv-tools</code> sits
+        outside <code>C:\dev\carepulse</code>, so git never sees it and no <code>.gitignore</code> change is needed.</div>
+      </div>
+
+      <div class="topic" id="session5-commands">
+        <h3><span class="tag concept">Reference</span> Commands used this session</h3>
+        <div class="cmd-row"><code class="cmdline">aws s3 cp glue-transform\transform_table.py s3://carepulse-raw-preetham-2026/scripts/transform_table.py</code><p>Deploys the script — Glue runs the S3 copy, not the local file. Must print <code>upload: ...</code> before running the job.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws glue start-job-run --job-name carepulse-transform-table --arguments=--TABLE_NAME=patients</code><p>Starts one run for one table. The <code>=</code> after <code>--arguments</code> stops the CLI reading <code>--TABLE_NAME</code> as its own flag. One run at a time — a second start while one is RUNNING is rejected.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws glue get-job-run --job-name carepulse-transform-table --run-id &lt;jr_...&gt; --query "JobRun.[JobRunState,ExecutionTime,ErrorMessage]"</code><p>Status of one specific run by ID — safer than "latest run", which can point at a different run.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws s3 ls s3://carepulse-raw-preetham-2026/curated/observations/ --summarize --human-readable</code><p>Output file count and total size.</p></div>
+        <div class="cmd-row"><code class="cmdline">git --no-pager diff glue-transform/transform_table.py</code><p>Prints the whole diff to the terminal. Without <code>--no-pager</code>, long output opens in <code>less</code> — <code>Space</code> next page, <code>q</code> quit.</p></div>
+        <div class="cmd-row"><code class="cmdline">git add .gitignore glue-transform/transform_table.py glue-transform/check_parquet.py</code><p>Stage named files only — never <code>git add .</code> while large generated files sit in the tree.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws logs tail /aws-glue/jobs/error --log-stream-name-prefix &lt;jr_...&gt; --since 30m</code><p>Spark/traceback output for one run. Without <code>--enable-continuous-cloudwatch-log</code> these logs land mostly when the run finishes.</p></div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Some values in a column are numeric and some are text. Why not just cast the column to double?</p>
+        <p class="a">Because the cast doesn't fail — it returns NULL. In my observations table 38% of rows (16.7 million)
+        are text findings like smoking status. Casting the whole column to double would have silently wiped all of
+        them while the job still reported success. I kept the original <code>VALUE</code> as a string and derived a
+        <code>VALUE_NUM</code> double only where the row's <code>TYPE</code> says numeric, then verified both
+        directions: zero numeric rows with a NULL number, and zero text rows with a number.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You give Spark an explicit schema for a CSV with a header. What can still go wrong?</p>
+        <p class="a">By default Spark applies the schema by position and ignores the header names, so a schema
+        written in a different order than the file loads the wrong data into the wrong columns without any error.
+        And in the default PERMISSIVE mode, values that don't fit the declared type quietly become NULL. I set
+        <code>enforceSchema=false</code> so the header is checked against the schema, and <code>mode=FAILFAST</code>
+        so one bad value fails the job — that way "succeeded" actually means every value parsed.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Explicit typing made your biggest job slower. Was it worth it?</p>
+        <p class="a">It cost 27 seconds on a 7.7GB, 43.5-million-row table — 265 to 292 seconds, about 10%. That's
+        paid once, at ingestion. Without it, every downstream query in Athena or Snowflake re-parses the same
+        strings, and things like "days between discharge and readmission" can't even be computed on string
+        columns. I measured the before and after rather than assuming, and the typing also surfaced real
+        data-quality facts — placeholder ZIPs, 25% missing FIPS codes — that an all-string table hides.</p>
+      </div>
+
+      <div class="topic error" id="session5-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>PII columns in curated output</td><td>Next change: hash or drop <code>SSN</code>, <code>DRIVERS</code>, <code>PASSPORT</code>, names, addresses before the curated layer</td></tr>
+          <tr><td><code>encounters</code> typed run time</td><td>Read the Duration from the Glue console Runs tab and fill in above</td></tr>
+          <tr><td>INT96 timestamps in Parquet</td><td>Decide the Parquet timestamp format at the Snowflake/Athena stage</td></tr>
+          <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification, or a separate curated bucket</td></tr>
+          <tr><td><code>repartition(1)</code></td><td>Still fine at 292s; the natural before/after optimization target if runtime grows</td></tr>
+          <tr><td>Live Glue logs</td><td>Optional: <code>--enable-continuous-cloudwatch-log</code> in the job's <code>default_arguments</code></td></tr>
+        </table>
+      </div>
+
+    </section>
 
   </main>
 </div>
