@@ -10,9 +10,13 @@ infra/terraform.tfstate
 infra/terraform.tfstate.backup
 infra/tfplan
 
-# Python
+# Python      
 lambda-validate/venv/
 lambda-validate/__pycache__/
 lambda-validate/*.zip
 
 desktop.ini
+# Graphify output (regenerate with: graphify update .)
+graphify-out/
+# Graphify output (regenerate with: graphify update .)
+graphify-out/

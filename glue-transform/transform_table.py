@@ -74,6 +74,17 @@ SCHEMAS = {
     ),
 }
 
+# Columns removed before the curated layer: direct identifiers and precise location.
+# Minimum necessary: Id is the join key, so nothing here needs to be hashed and kept.
+DROP_COLUMNS = {
+    "patients": [
+        "SSN", "DRIVERS", "PASSPORT",
+        "PREFIX", "FIRST", "MIDDLE", "LAST", "SUFFIX", "MAIDEN",
+        "ADDRESS", "CITY", "BIRTHPLACE", "LAT", "LON",
+        "ZIP",  # replaced by ZIP3 below
+    ],
+}
+
 if table_name not in SCHEMAS:
     raise ValueError(f"No schema defined for table '{table_name}'")
 
@@ -95,7 +106,11 @@ if table_name == "observations":
         "VALUE_NUM",
         F.when(F.col("TYPE") == "numeric", F.col("VALUE").cast("double")),
     )
+if table_name == "patients":
+    # Generalize ZIP to its 3-digit region (HIPAA Safe Harbor style) before ZIP is dropped
+    df = df.withColumn("ZIP3", F.substring(F.col("ZIP"), 1, 3))
 
+df = df.drop(*DROP_COLUMNS.get(table_name, []))
 df.repartition(1).write.mode("overwrite").parquet(output_path)
 
 job.commit()
