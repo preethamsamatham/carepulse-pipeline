@@ -138,10 +138,11 @@ footer b{color:var(--onyx)}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 5</span>
+    <span class="meta-pill">Sessions: 6</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
-    <span class="meta-pill">Phase 2: ✓ all six tables typed (explicit schemas) &amp; verified</span>
+    <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
+    <span class="meta-pill">Phase 3: Snowflake on AWS — stage live, loading next</span>
   </div>
 </header>
 
@@ -355,6 +356,16 @@ footer b{color:var(--onyx)}
     <a href="#schema-typing-findings"><span class="dot"></span>Data findings</a>
     <a href="#gitignore-nested-gotcha"><span class="dot"></span>.gitignore ** gotcha</a>
     <a href="#session5-open"><span class="dot"></span>Open items</a>
+    <a href="#session6"><span class="dot"></span>Session 6 — PII + Snowflake</a>
+    <a href="#pii-masking"><span class="dot"></span>PII masking decision</a>
+    <a href="#pii-verified"><span class="dot"></span>Masking verified</a>
+    <a href="#snowflake-account"><span class="dot"></span>Snowflake account setup</a>
+    <a href="#carepluse-typo"><span class="dot"></span>carepluse typo gotcha</a>
+    <a href="#storage-integration"><span class="dot"></span>S3 storage integration</a>
+    <a href="#glue-drift"><span class="dot"></span>Terraform drift gotcha</a>
+    <a href="#stage-verified"><span class="dot"></span>Stage + LIST verified</a>
+    <a href="#session6-doubts"><span class="dot"></span>Doubts answered</a>
+    <a href="#session6-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -1785,12 +1796,343 @@ python glue-transform\check_parquet.py glue-transform\check-observations\&lt;par
         <h3><span class="tag error">Open items</span> Carried forward</h3>
         <table>
           <tr><th>Item</th><th>Next action</th></tr>
-          <tr><td>PII columns in curated output</td><td>Next change: hash or drop <code>SSN</code>, <code>DRIVERS</code>, <code>PASSPORT</code>, names, addresses before the curated layer</td></tr>
+          <tr><td>PII columns in curated output</td><td><b>Done in <a href="#pii-masking">Session 6</a></b> — 15 columns dropped, ZIP → ZIP3</td></tr>
           <tr><td><code>encounters</code> typed run time</td><td>Read the Duration from the Glue console Runs tab and fill in above</td></tr>
           <tr><td>INT96 timestamps in Parquet</td><td>Decide the Parquet timestamp format at the Snowflake/Athena stage</td></tr>
           <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification, or a separate curated bucket</td></tr>
           <tr><td><code>repartition(1)</code></td><td>Still fine at 292s; the natural before/after optimization target if runtime grows</td></tr>
           <tr><td>Live Glue logs</td><td>Optional: <code>--enable-continuous-cloudwatch-log</code> in the job's <code>default_arguments</code></td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session" id="session6">
+      <div class="session-head">
+        <h2>Session 6 — PII Masking + Phase 3 Begins: Snowflake on AWS</h2>
+        <span class="date">Sep 25, 2026</span>
+      </div>
+
+      <div class="topic decision" id="pii-masking">
+        <h3><span class="tag decision">Decision</span> PII masking in the curated layer — "minimum necessary"</h3>
+        <p>Only <code>patients</code> needed masking: the other five tables identify people solely through
+        <code>PATIENT</code>, a random UUID. The test for every column: <i>does the readmission model or a join
+        need it?</i> If not, drop it. Hashing is only for a value you still need to <i>match on</i> — and
+        <code>Id</code> is already the join key, so nothing needed hashing.</p>
+        <table>
+          <tr><th>Column(s)</th><th>Action</th><th>Why</th></tr>
+          <tr><td><code>SSN</code>, <code>DRIVERS</code>, <code>PASSPORT</code></td><td>drop</td><td>Direct identifiers; hashing SSN would keep risk for zero benefit</td></tr>
+          <tr><td><code>PREFIX</code>, <code>FIRST</code>, <code>MIDDLE</code>, <code>LAST</code>, <code>SUFFIX</code>, <code>MAIDEN</code></td><td>drop</td><td>Names — no model value</td></tr>
+          <tr><td><code>ADDRESS</code>, <code>CITY</code>, <code>BIRTHPLACE</code>, <code>LAT</code>, <code>LON</code></td><td>drop</td><td>Pinpoint location (coordinates <i>are</i> an address)</td></tr>
+          <tr><td><code>ZIP</code></td><td>generalize → <code>ZIP3</code></td><td>HIPAA Safe Harbor allows 3-digit ZIPs: keeps a regional feature, removes precision</td></tr>
+          <tr><td><code>STATE</code>, <code>COUNTY</code>, <code>FIPS</code></td><td>keep</td><td>County-level — coarse enough, useful features</td></tr>
+          <tr><td><code>BIRTHDATE</code>, <code>DEATHDATE</code></td><td>keep</td><td>Age at admission and death-as-outcome are core to readmission</td></tr>
+          <tr><td><code>GENDER</code>, <code>RACE</code>, <code>ETHNICITY</code>, <code>MARITAL</code></td><td>keep</td><td>Features, and needed later to check the model for bias across groups</td></tr>
+          <tr><td><code>HEALTHCARE_EXPENSES</code>, <code>_COVERAGE</code>, <code>INCOME</code></td><td>keep</td><td>Socioeconomic readmission features</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>DROP_COLUMNS = {
+    "patients": [
+        "SSN", "DRIVERS", "PASSPORT",
+        "PREFIX", "FIRST", "MIDDLE", "LAST", "SUFFIX", "MAIDEN",
+        "ADDRESS", "CITY", "BIRTHPLACE", "LAT", "LON",
+        "ZIP",  # replaced by ZIP3 below
+    ],
+}
+...
+if table_name == "patients":
+    df = df.withColumn("ZIP3", F.substring(F.col("ZIP"), 1, 3))
+
+df = df.drop(*DROP_COLUMNS.get(table_name, []))</code></pre></div>
+        <div class="why"><b>The honest trade-off:</b> this removes <i>direct identifiers</i> — it is not full Safe
+        Harbor de-identification. Safe Harbor also treats exact dates as identifiers, but readmission <i>is</i>
+        "days between discharge and next admission", so dates stay and the curated layer still needs access
+        control. Safe Harbor's "3-digit regions under 20,000 people become <code>000</code>" rule isn't applied
+        (needs Census data). And the <b>raw bucket still holds full PII</b> (<code>patients.csv</code> with SSNs) —
+        the right claim is "PHI never leaves the raw layer", not "the pipeline has no PII".</div>
+      </div>
+
+      <div class="topic" id="pii-python-concepts">
+        <h3><span class="tag concept">Concept</span> Four details in those five lines</h3>
+        <table>
+          <tr><th>Piece</th><th>What it does</th></tr>
+          <tr><td><code>*DROP_COLUMNS.get(...)</code></td><td><code>*</code> is Python's unpacking operator: it turns one list into separate arguments. <code>df.drop(*["SSN","DRIVERS"])</code> is exactly <code>df.drop("SSN","DRIVERS")</code>. Without it, PySpark receives a list where it expects names and errors.</td></tr>
+          <tr><td><code>.get(table_name, [])</code></td><td>Dict lookup with a default: tables not in the dict get <code>[]</code>, which unpacks to nothing, so <code>df.drop()</code> is a no-op for the other five tables — one line, no <code>if</code>.</td></tr>
+          <tr><td><code>F.substring(col, 1, 3)</code></td><td>Spark/SQL positions are <b>1-based</b> (Python slicing is 0-based). <code>01086</code> → <code>010</code>; NULL → NULL. This only works because Session 5 kept <code>ZIP</code> a string — as an integer, <code>01086</code> would be <code>1086</code> → <code>108</code>, a different region.</td></tr>
+          <tr><td><code>df = df.withColumn(...)</code></td><td>DataFrames are immutable: <code>withColumn</code> returns a new one. Without <code>df =</code> the new column is thrown away. <code>ZIP3</code> must be created <i>before</i> the drop, or <code>ZIP</code> is already gone.</td></tr>
+        </table>
+        <p style="margin-top:10px">Same <code>*</code> seen earlier in the header-check one-liner:
+        <code>print(k, *f(k,2), sep='\n')</code> spread the returned <code>(header, sample)</code> tuple into two printed items.</p>
+      </div>
+
+      <div class="topic error" id="drop-silent-gotcha">
+        <h3><span class="tag error">Gotcha</span> <code>df.drop()</code> silently ignores names that don't exist</h3>
+        <p>A typo like <code>"PASPORT"</code> raises no error — the real <code>PASSPORT</code> column simply stays in
+        the output. So a SUCCEEDED run proves nothing about masking.</p>
+        <div class="why"><b>Rule:</b> verify masking by reading the output schema, never by the job status. Same
+        lesson as <code>VALUE_NUM</code>: operations that fail quietly need an explicit check of the result.</div>
+      </div>
+
+      <div class="topic decision" id="pii-verified">
+        <h3><span class="tag decision">Verified</span> Masked <code>patients</code> — schema, row count, ZIP3 values</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>python -c "import pyarrow.parquet as pq, glob; f=glob.glob('glue-transform/check-patients/*.parquet')[0]; print(pq.read_schema(f).names); print(pq.ParquetFile(f).metadata.num_rows, 'rows')"</code></pre></div>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Columns</td><td><b>14</b> = 28 − 15 dropped + <code>ZIP3</code>: <code>Id, BIRTHDATE, DEATHDATE, MARITAL, RACE, ETHNICITY, GENDER, STATE, COUNTY, FIPS, HEALTHCARE_EXPENSES, HEALTHCARE_COVERAGE, INCOME, ZIP3</code></td></tr>
+          <tr><td>Rows</td><td><b>57,537</b> — unchanged (dropping columns never drops rows)</td></tr>
+          <tr><td><code>ZIP3</code></td><td>20 distinct values, all Massachusetts (<code>010</code>–<code>027</code>); largest real region <code>021</code> (Boston area)</td></tr>
+          <tr><td>Run time</td><td>103s (vs 155s typed-only) — fewer columns to write</td></tr>
+          <tr><td>Output</td><td>New part id <code>f3f58228…</code>, 3.2–3.4 MB (vs ~7 MB unmasked) — proof the new code ran</td></tr>
+        </table>
+        <div class="why"><b>Finding:</b> <code>ZIP3 = '000'</code> for <b>14,618</b> patients — exactly the number with
+        NULL <code>FIPS</code>. Same 25% of patients, no usable geography at all. <code>000</code> looks like a
+        region but means "unknown"; left as-is, a model would treat it as the largest "region". Decision: keep
+        curated faithful to source, handle it in the feature layer (<code>geo_known</code> flag + NULL).</div>
+      </div>
+
+      <div class="topic" id="value-counts-explained">
+        <h3><span class="tag concept">Doubt answered</span> Reading the ZIP3 check one-liner</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>t  = pq.read_table(glob.glob('glue-transform/check-patients/*.parquet')[0], columns=['ZIP3'])
+vc = pc.value_counts(t['ZIP3']).to_pylist()
+print(len(vc), 'distinct')
+print(sorted(vc, key=lambda x: -x['counts'])[:8])</code></pre></div>
+        <p><code>glob.glob(...)[0]</code> finds the one part file without typing its name.
+        <code>columns=['ZIP3']</code> reads a single column — Parquet is columnar, so the other 13 are skipped on
+        disk (the same reason Snowflake/Athena bill less for fewer columns). <code>value_counts</code> =
+        <code>GROUP BY ZIP3, COUNT(*)</code>. <code>lambda x: -x['counts']</code> negates the count so the ascending
+        sort puts the biggest first; <code>[:8]</code> keeps the top 8. SQL equivalent:
+        <code>SELECT ZIP3, COUNT(*) c FROM patients GROUP BY ZIP3 ORDER BY c DESC LIMIT 8</code>.</p>
+      </div>
+
+      <div class="topic" id="graphify">
+        <h3><span class="tag concept">Side tool</span> Graphify — a code knowledge graph of the repo</h3>
+        <p><code>graphifyy</code> (double y is the real PyPI name, checked against the project's docs — a double
+        letter is also a typosquatting pattern, so worth verifying) builds a graph of files, functions, imports and
+        resources. Code parsing is local (tree-sitter), no API key.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>uv tool install "graphifyy[terraform]"   # [terraform] adds .tf/.hcl parsing
+cd C:\dev\carepulse
+graphify update .
+start graphify-out\graph.html</code></pre></div>
+        <div class="why"><b>Result:</b> 34 nodes / 40 edges without Terraform support → <b>51 / 67 / 9 communities</b>
+        with it — the extra nodes are the <code>main.tf</code> resources, where the S3 → Lambda → Glue wiring
+        actually lives. Honest read: on an 8-file repo it adds little over the hand-drawn diagram; it earns its
+        place once the repo grows. <code>graphify-out/</code> added to <code>.gitignore</code> (generated output).
+        No install target exists for this chat app — it runs on the PC, or in Claude's own workspace against the
+        public repo.</div>
+      </div>
+
+      <div class="topic error" id="gitignore-in-powershell">
+        <h3><span class="tag error">Gotcha</span> Typing a <code>.gitignore</code> line into PowerShell</h3>
+        <p>Ran <code>graphify-out/</code> at the prompt → <code>The term 'graphify-out/' is not recognized as the name of a cmdlet</code>.
+        Nothing changed. <code>.gitignore</code> is a text file git reads — its lines are <i>edited into the file</i>,
+        not executed.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>notepad .gitignore        # edit by hand, or append:
+Add-Content -Path .gitignore -Value "`n# Graphify output`ngraphify-out/"
+Get-Content .gitignore -Tail 3</code></pre></div>
+        <div class="why"><b>Also seen:</b> <code>LF will be replaced by CRLF</code> on <code>git add</code> — harmless.
+        Files written on Linux end lines with <code>LF</code>; Windows git converts to <code>CRLF</code> in the working
+        copy. It's also why identical files once looked "different" in a byte comparison.</div>
+      </div>
+
+      <div class="topic decision" id="snowflake-account">
+        <h3><span class="tag decision">Decision</span> New Snowflake trial: AWS, us-east-1, Standard</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>aws s3api get-bucket-location --bucket carepulse-raw-preetham-2026
+# "LocationConstraint": null   -> us-east-1 (the original region reports null for backward compatibility)</code></pre></div>
+        <table>
+          <tr><th>Choice</th><th>Why</th></tr>
+          <tr><td>Cloud <b>AWS</b>, region <b>US East (N. Virginia)</b></td><td>Same region as the bucket: no cross-region transfer fees on every load, faster, and Snowpipe's S3→SQS notifications require it. The form defaulted to <b>Ohio (us-east-2)</b> — changed. Spotify war story #17 was this exact class of mistake.</td></tr>
+          <tr><td>Edition <b>Standard</b> (not the Enterprise default)</td><td>The trial is a dollar amount; Enterprise costs more per credit, so it drains faster. Its extras (90-day Time Travel, multi-cluster, materialized views) aren't used here.</td></tr>
+        </table>
+        <p style="margin-top:10px">Verified immediately: <code>SELECT CURRENT_REGION(), CURRENT_ACCOUNT(), CURRENT_VERSION();</code>
+        → <code>AWS_US_EAST_1 · OIC72962 · 10.34.101</code>.</p>
+        <div class="why"><b>Identifiers, recorded now (Spotify war story #31):</b> <code>OIC72962</code> = account
+        <b>locator</b> (from <code>CURRENT_ACCOUNT()</code>, also the prefix of the external ID); <code>HNC80452</code>
+        = the name shown in the Snowsight breadcrumb. Code connections later need the full
+        <code>ORGNAME-ACCOUNTNAME</code> form (bottom-left → Account → View account details).</div>
+      </div>
+
+      <div class="topic decision" id="snowflake-base-objects">
+        <h3><span class="tag decision">Decision</span> Warehouse, database and layer schemas — owned by SYSADMIN</h3>
+        <table>
+          <tr><th>Object</th><th>Why</th></tr>
+          <tr><td><code>USE ROLE SYSADMIN</code></td><td>Convention: SYSADMIN owns data objects; ACCOUNTADMIN only for account-level objects. Creating everything as ACCOUNTADMIN makes the most powerful role own it all.</td></tr>
+          <tr><td><code>carepulse_wh</code>: XSMALL, <code>AUTO_SUSPEND = 60</code>, <code>INITIALLY_SUSPENDED</code></td><td>1 credit/hour, pays only while running (the Spotify 280× lesson), no billing until the first query.</td></tr>
+          <tr><td><code>carepulse_db</code> + <code>RAW</code>, <code>CORE</code>, <code>FEATURE_STORE</code>, <code>MART</code></td><td>The planned layers, visible in the database from day one.</td></tr>
+        </table>
+        <div class="why"><b>Verified:</b> <code>SHOW SCHEMAS IN DATABASE carepulse_db</code> → all four layers plus
+        <code>PUBLIC</code>/<code>INFORMATION_SCHEMA</code>, owner SYSADMIN. Full script:
+        <code>snowflake/01_setup.sql</code>.</div>
+      </div>
+
+      <div class="topic error" id="carepluse-typo">
+        <h3><span class="tag error">Gotcha</span> <code>carepluse</code> vs <code>carepulse</code> — hit twice</h3>
+        <p><b>1.</b> Created <code>carepluse_wh</code>/<code>carepluse_db</code> (u/l swapped), then
+        <code>SHOW SCHEMAS IN DATABASE carepulse_db</code> → <code>Object does not exist</code>. The creates had all
+        "succeeded" — under the wrong name. <b>2.</b> Later <code>Integration 'CAREPLUSE_S3_INT' does not exist or not authorized</code>
+        — same swap in a GRANT/STAGE line.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>ALTER DATABASE  carepluse_db RENAME TO carepulse_db;   -- schemas inside move with it
+ALTER WAREHOUSE carepluse_wh RENAME TO carepulse_wh;
+SHOW INTEGRATIONS;                                      -- check the real name before guessing</code></pre></div>
+        <div class="why"><b>Rules:</b> fix a name mismatch immediately — every later object (stages, grants, tables)
+        would inherit it. On any "does not exist" error, compare the name <i>in the error</i> with the name you meant
+        before suspecting anything else. Copy names from <code>SHOW</code> output or use autocomplete; run one
+        statement at a time so a typo surfaces at the create, not five statements later.</div>
+      </div>
+
+      <div class="topic decision" id="storage-integration">
+        <h3><span class="tag decision">Decision</span> S3 storage integration — cross-account role, no keys</h3>
+        <p>Snowflake runs in <i>its own</i> AWS account. Rather than an IAM user with access keys pasted into
+        Snowflake, a cross-account role: Snowflake's IAM user (<code>749680934045:user/qar92000-s</code>) may assume
+        <code>carepulse-snowflake-role</code> in <i>this</i> account (<code>391732005285</code>) — only when it presents
+        this account's external ID.</p>
+        <p><b>One-pass ordering trick:</b> the trust policy needs two values Snowflake only generates at creation,
+        but creating the integration only needs the role ARN <i>as text</i>. So: (1) create the integration pointing
+        at the future ARN → (2) <code>DESC INTEGRATION</code> for <code>STORAGE_AWS_IAM_USER_ARN</code> and
+        <code>STORAGE_AWS_EXTERNAL_ID</code> → (3) create the role in Terraform with the right trust policy in a single apply.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>resource "aws_iam_role" "snowflake_role" {
+  name = "carepulse-snowflake-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = "arn:aws:iam::749680934045:user/qar92000-s" }
+      Action    = "sts:AssumeRole"
+      Condition = { StringEquals = { "sts:ExternalId" = "OIC72962_SFCRole=..." } }
+    }]
+  })
+}
+# + aws_iam_role_policy: GetObject/GetObjectVersion on curated/*,
+#   ListBucket with s3:prefix = curated/*, GetBucketLocation. No Put/Delete.</code></pre></div>
+        <table>
+          <tr><th>Piece</th><th>Why</th></tr>
+          <tr><td>Trust policy (<code>assume_role_policy</code>)</td><td><i>Who</i> may become the role. Lambda/Glue roles named a service here; this one names an IAM user in another account.</td></tr>
+          <tr><td>External ID</td><td>Blocks the <b>confused deputy</b>: another Snowflake customer pointing their integration at this role ARN to make Snowflake read this bucket for them.</td></tr>
+          <tr><td><code>ListBucket</code> + <code>s3:prefix</code> condition</td><td><code>ListBucket</code> applies to the bucket ARN, so only the condition stops Snowflake seeing every file name.</td></tr>
+          <tr><td><code>STORAGE_ALLOWED_LOCATIONS = curated/</code></td><td>Snowflake itself refuses a stage over the bucket root (raw PII). Two independent locks: Snowflake-side + IAM-side.</td></tr>
+          <tr><td><code>ACCOUNTADMIN</code> to create, then <code>GRANT USAGE ... TO ROLE SYSADMIN</code></td><td>Integrations are account-level; SYSADMIN gets <i>use</i> rights so daily work stays on the narrower role.</td></tr>
+        </table>
+        <div class="why"><b>Never <code>CREATE OR REPLACE</code> the integration:</b> it regenerates the external ID,
+        the trust policy stops matching, and every stage fails with <code>sts:AssumeRole</code>. The external ID and
+        Snowflake's user ARN aren't secrets (useless without the role policy) — safe to commit in <code>main.tf</code>.</div>
+      </div>
+
+      <div class="topic" id="gcp-vs-aws-integration">
+        <h3><span class="tag concept">Doubt answered</span> GCP equivalents — identity, projects, and the integration itself</h3>
+        <table>
+          <tr><th>AWS</th><th>GCP</th></tr>
+          <tr><td><code>aws sts get-caller-identity</code> (who + which account, in one)</td><td><code>gcloud auth list</code> (who) · <code>gcloud config get-value project</code> (which project) · <code>gcloud projects describe &lt;id&gt; --format="value(projectNumber)"</code></td></tr>
+          <tr><td>Account — 12-digit ID</td><td>Project — ID (<code>python-gcp-snowflake</code>) + number (<code>429687740825</code>)</td></tr>
+          <tr><td>IAM role — assumed temporarily</td><td>Service account — resources run <i>as</i> it</td></tr>
+          <tr><td>Snowflake integration: IAM user ARN + external ID → you write a trust policy (cross-account role assumption)</td><td>Snowflake integration: it hands you a service account (<code>k16l50000@…</code>) → you grant it <code>storage.objectViewer</code> directly. No trust policy, no external ID.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="glue-drift">
+        <h3><span class="tag error">Gotcha</span> "2 added, <b>1 changed</b>" — console drift on the Glue job</h3>
+        <p>Expected <code>2 to add, 0 to change</code>. The plan also updated <code>aws_glue_job.transform_encounters</code>,
+        removing <code>--enable-job-insights</code>, <code>--job-language python</code>, an Iceberg
+        <code>--conf ...skip-name-validation</code>, and <code>execution_class = STANDARD</code>.</p>
+        <div class="why"><b>Root cause:</b> none were in <code>main.tf</code> — the Glue <b>console</b> added its own
+        defaults when the job was saved there (9/17). Terraform saw drift and restored the code's version (Terraform
+        interview Q4, live). All harmless except job insights (powers the Run insights tab) — now declared in
+        <code>main.tf</code> <code>default_arguments</code>. <b>Rules:</b> the console is for looking, Terraform is for
+        changing; and a saved <code>tfplan</code> only protects you if the plan was actually read before apply.</div>
+      </div>
+
+      <div class="topic decision" id="stage-verified">
+        <h3><span class="tag decision">Verified</span> File format, stage and <code>LIST</code> — the whole chain works</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>CREATE FILE FORMAT IF NOT EXISTS parquet_format TYPE = PARQUET;
+CREATE STAGE IF NOT EXISTS curated_stage
+    STORAGE_INTEGRATION = carepulse_s3_int
+    URL = 's3://carepulse-raw-preetham-2026/curated/'
+    FILE_FORMAT = parquet_format;
+LIST @curated_stage;</code></pre></div>
+        <p><code>LIST</code> returned all six Parquet files — proving integration → AssumeRole → IAM policy → S3
+        end to end. <code>patients</code> showed the masked file (<code>f3f58228…</code>, today); the other five the
+        typed runs from Session 5. ETag suffixes like <code>-2</code>/<code>-4</code> = number of multipart-upload parts.</p>
+        <div class="why"><b>Doubt answered — is "Last modified" from AWS?</b> Yes. A stage stores no data; it's a
+        saved pointer (path + integration + format). Opening it asks S3 for its listing live, so size and
+        <code>LastModified</code> are S3's own object metadata. Nothing is copied until <code>COPY INTO</code>.</div>
+      </div>
+
+      <div class="topic error" id="compute-wh-default">
+        <h3><span class="tag error">Gotcha</span> Snowsight silently selects the trial's <code>COMPUTE_WH</code></h3>
+        <p>The stage screenshot showed <code>COMPUTE_WH</code> in the top bar, not <code>carepulse_wh</code> — anything run
+        there bills to a warehouse whose auto-suspend was never checked.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>USE ROLE ACCOUNTADMIN;
+ALTER WAREHOUSE compute_wh SET AUTO_SUSPEND = 60;
+ALTER WAREHOUSE compute_wh SUSPEND;
+-- and start every worksheet with: USE WAREHOUSE carepulse_wh;</code></pre></div>
+      </div>
+
+      <div class="topic" id="session6-doubts">
+        <h3><span class="tag concept">Doubts asked &amp; answered</span> Quick reference</h3>
+        <table>
+          <tr><th>Question</th><th>Answer</th></tr>
+          <tr><td>Is Redshift in the stack?</td><td>No — Snowflake is the warehouse. Built: S3, Lambda, Glue (PySpark), IAM, Terraform (S3 state + DynamoDB lock), CloudWatch Logs, Snowflake, Git/GitHub. Planned: Glue Data Catalog + Athena, Snowpipe (SQS), Step Functions, GitHub Actions, Snowpark ML.</td></tr>
+          <tr><td>Why Snowflake over Redshift?</td><td>The target role asks for it; storage/compute separation with per-second billing and auto-suspend; the same skills already proven on GCP (Spotify) and now AWS. Redshift fits an all-AWS shop with existing Redshift investment.</td></tr>
+          <tr><td>Why <code>INFER_SCHEMA</code> now, after "never infer" in Session 5?</td><td>That rule was about CSV, where Spark guesses types from text. Parquet stores the types Glue wrote, so Snowflake <i>reads</i> the schema rather than guessing — the typing work is what makes this reliable.</td></tr>
+          <tr><td>Why does <code>CREATE STORAGE INTEGRATION</code> need ACCOUNTADMIN?</td><td>It's account-level (not inside a database); SYSADMIN can only create objects inside the account → <code>Insufficient privileges</code> otherwise.</td></tr>
+          <tr><td>How to open a <code>.sql</code> file in Snowsight?</td><td>Paste into a worksheet, or Workspaces → <b>+</b> → Upload files (or drag and drop). Later option: link Workspaces to the GitHub repo. <code>01_setup.sql</code> is the record, not something to re-run each session.</td></tr>
+          <tr><td>Recruiter reply: which AWS skills to list?</td><td>S3, Glue (PySpark), Lambda, IAM, Terraform + Snowflake — only what's actually built. dbt removed (not in CarePulse yet); it fits the CORE → MART layers if added.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="session6-commands">
+        <h3><span class="tag concept">Reference</span> Commands used this session</h3>
+        <div class="cmd-row"><code class="cmdline">aws s3api get-bucket-location --bucket carepulse-raw-preetham-2026</code><p>Bucket region; <code>null</code> = us-east-1.</p></div>
+        <div class="cmd-row"><code class="cmdline">aws sts get-caller-identity --query Account --output text</code><p>This AWS account's 12-digit ID — used in the role ARN.</p></div>
+        <div class="cmd-row"><code class="cmdline">Remove-Item -Recurse glue-transform\check-patients</code><p>Clear an old download before fetching a new one, so the check can't read last session's file.</p></div>
+        <div class="cmd-row"><code class="cmdline">DESC INTEGRATION carepulse_s3_int;</code><p>Shows <code>STORAGE_AWS_IAM_USER_ARN</code> and <code>STORAGE_AWS_EXTERNAL_ID</code> for the trust policy.</p></div>
+        <div class="cmd-row"><code class="cmdline">SHOW INTEGRATIONS;  SHOW SCHEMAS IN DATABASE carepulse_db;  SHOW WAREHOUSES LIKE 'carepulse_wh';</code><p>Confirm real object names and owners instead of guessing.</p></div>
+        <div class="cmd-row"><code class="cmdline">LIST @curated_stage;</code><p>End-to-end access test for integration + IAM role + policy.</p></div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you handle PII in your healthcare pipeline?</p>
+        <p class="a">Minimum necessary at the curated layer. Direct identifiers — SSN, license, passport, names,
+        street address, coordinates — are dropped, not hashed, because the patient UUID is already the join key and
+        nothing needs to match on them. ZIP is generalized to its 3-digit region, which HIPAA Safe Harbor allows.
+        Dates stay, because readmission is a date calculation, so I describe it as removing direct identifiers, not
+        full de-identification. Raw data with PII never leaves the raw layer: Snowflake's storage integration is
+        limited to the curated prefix on both the Snowflake side and in the IAM policy. And I verified the masking by
+        reading the output schema, because Spark's <code>drop()</code> silently ignores a misspelled column.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How does Snowflake read your S3 bucket without access keys?</p>
+        <p class="a">A storage integration with cross-account role assumption. Snowflake gives me the ARN of its own
+        IAM user and an external ID unique to my Snowflake account; I create a role whose trust policy lets only that
+        user assume it, and only with that external ID. The external ID prevents the confused-deputy problem —
+        another Snowflake customer can't point their integration at my role. The role's policy allows read-only
+        access to the curated prefix. On GCP it's simpler: Snowflake provides a service account and I grant it a
+        bucket role directly. I've built both.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Terraform wanted to change a resource you didn't touch. What do you do?</p>
+        <p class="a">Read the plan before applying — it's drift. In my case the Glue console had added its own default
+        arguments when the job was saved there, and the plan would remove them. Most were harmless defaults, but one
+        enabled job insights, which I wanted, so I declared it in the Terraform config instead of relying on the
+        console. The rule I follow: the console is for looking, infrastructure changes go through code, so the next
+        apply can't silently undo them.</p>
+      </div>
+
+      <div class="topic error" id="session6-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Load RAW tables</td><td><code>02_load_raw.sql</code>: <code>INFER_SCHEMA</code> → <code>CREATE TABLE ... USING TEMPLATE</code> → <code>COPY INTO</code>; start with <code>patients</code>, check 57,537 rows</td></tr>
+          <tr><td>INT96 timestamps</td><td>Check how Snowflake types <code>DATE</code>/<code>START</code>/<code>STOP</code> in the loaded tables</td></tr>
+          <tr><td>Raw bucket holds full PII</td><td>Scope raw access tightly (IAM) or move raw to its own bucket</td></tr>
+          <tr><td><code>ZIP3 = '000'</code> (14,618 patients, same as NULL FIPS)</td><td>Treat as unknown in the feature layer</td></tr>
+          <tr><td>Safe Harbor &lt;20,000-population ZIP3 rule</td><td>Not applied — known limitation</td></tr>
+          <tr><td><code>encounters</code> typed run time (Session 5)</td><td>Still not recorded</td></tr>
+          <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification</td></tr>
+          <tr><td>Snowflake full account identifier</td><td>Record the <code>ORGNAME-ACCOUNTNAME</code> form before any code connection</td></tr>
+          <tr><td>Commit</td><td><code>snowflake/01_setup.sql</code> + <code>infra/main.tf</code> together</td></tr>
         </table>
       </div>
 
