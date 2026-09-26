@@ -163,6 +163,7 @@ resource "aws_iam_role_policy" "glue_policy" {
 }
 
 resource "aws_glue_job" "transform_encounters" {
+  
   name         = "carepulse-transform-table"
   role_arn     = aws_iam_role.glue_role.arn
   glue_version = "4.0"
@@ -178,8 +179,57 @@ resource "aws_glue_job" "transform_encounters" {
 
   default_arguments = {
     "--job-bookmark-option" = "job-bookmark-disable"
+    "--enable-job-insights" = "true"
   }
 
   max_retries = 0
   timeout     = 10
 }
+
+# --- Snowflake storage integration: cross-account, read-only access to curated/ ---
+
+resource "aws_iam_role" "snowflake_role" {
+  name = "carepulse-snowflake-role"
+
+  # Trust policy: WHO may assume this role
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = "arn:aws:iam::749680934045:user/qar92000-s" }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        StringEquals = { "sts:ExternalId" = "OIC72962_SFCRole=2_TZRNwgwxxzCB5ufJhcyWF67fSKQ=" }
+      }
+    }]
+  })
+}
+
+# Permissions policy: WHAT the role may do once assumed
+resource "aws_iam_role_policy" "snowflake_read_curated" {
+  name = "carepulse-snowflake-read-curated"
+  role = aws_iam_role.snowflake_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:GetObjectVersion"]
+        Resource = "${aws_s3_bucket.carepulse_raw.arn}/curated/*"
+      },
+      {
+        Effect    = "Allow"
+        Action    = "s3:ListBucket"
+        Resource  = aws_s3_bucket.carepulse_raw.arn
+        Condition = { StringLike = { "s3:prefix" = ["curated/*"] } }
+      },
+      {
+        Effect   = "Allow"
+        Action   = "s3:GetBucketLocation"
+        Resource = aws_s3_bucket.carepulse_raw.arn
+      }
+    ]
+  })
+}
+
