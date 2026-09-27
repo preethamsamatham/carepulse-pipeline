@@ -73,7 +73,7 @@ FROM patients;
 
 
 -- =============================================================================
--- TABLE 2 — ENCOUNTERS                    STATUS: loaded; timestamp check pending
+-- TABLE 2 — ENCOUNTERS                    STATUS: loaded + timestamps verified
 -- First table with timestamps (Spark wrote them as legacy INT96).
 -- =============================================================================
 
@@ -103,19 +103,23 @@ COPY INTO encounters
 -- Verify INT96 came through as timestamps: START/STOP should be TIMESTAMP_NTZ
 DESC TABLE encounters;
 
--- Verify the exact time against a known raw-CSV value (catches silent timezone shifts):
--- expect 2026-03-24 15:27:18 -> 15:42:18, wellness, 347.38
-SELECT id, start, stop, encounterclass, total_claim_cost
+-- Verify the exact time against a known raw-CSV value (catches silent timezone shifts).
+-- START is a reserved word in Snowflake -> quote as "START"/"STOP" (uppercase, since
+-- quoted names are case-sensitive). Unquoted: "syntax error ... unexpected ','".
+-- Rename to start_ts/stop_ts in CORE.
+-- Result: 2026-03-24 15:27:18.000 -> 15:42:18.000, wellness, 347.38 — identical to the
+-- raw CSV (2026-03-24T15:27:18Z). Spark INT96 -> Snowflake timestamp with NO shift.
+SELECT id, "START", "STOP", encounterclass, total_claim_cost
 FROM encounters
 WHERE id = 'e7e708a7-8a2d-7c8a-a641-6730955ab4e9';
 
 
 -- =============================================================================
--- TABLES 3–6 — same pattern                                   STATUS: not yet run
+-- TABLES 3–6 — same pattern                            STATUS: loaded, 0 errors
 -- For each: check COPY output rows_parsed = rows_loaded and record the count.
 -- =============================================================================
 
--- ---- CONDITIONS (START/STOP are plain DATEs) --------------------------------
+-- ---- CONDITIONS (START/STOP are plain DATEs) — 2,093,392 rows, 6.2s ------------
 CREATE TABLE IF NOT EXISTS conditions
   USING TEMPLATE (
     SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)
@@ -127,7 +131,7 @@ COPY INTO conditions
   FILE_FORMAT = (FORMAT_NAME = 'parquet_format')
   MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
--- ---- MEDICATIONS -------------------------------------------------------------
+-- ---- MEDICATIONS — 2,903,828 rows, 11.8s --------------------------------------
 CREATE TABLE IF NOT EXISTS medications
   USING TEMPLATE (
     SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)
@@ -139,7 +143,7 @@ COPY INTO medications
   FILE_FORMAT = (FORMAT_NAME = 'parquet_format')
   MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
--- ---- PROCEDURES --------------------------------------------------------------
+-- ---- PROCEDURES — 9,388,622 rows, 26.6s ---------------------------------------
 CREATE TABLE IF NOT EXISTS procedures
   USING TEMPLATE (
     SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)
@@ -151,8 +155,9 @@ COPY INTO procedures
   FILE_FORMAT = (FORMAT_NAME = 'parquet_format')
   MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
--- ---- OBSERVATIONS (43.5M rows — time this load on X-Small) -------------------
--- Expect 43,551,685 rows; VALUE stays TEXT, VALUE_NUM is DOUBLE (NULL for text rows)
+-- ---- OBSERVATIONS — 43,551,685 rows, 117.5s on X-Small ----------------------------
+-- One 423MB file = one loading thread (X-Small has 8). Glue's repartition(1) limits
+-- COPY parallelism -> experiment: repartition(8) and re-measure (open item).
 CREATE TABLE IF NOT EXISTS observations
   USING TEMPLATE (
     SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)
@@ -165,10 +170,33 @@ COPY INTO observations
   MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
 
+-- VALUE_NUM survived the move. Result: 26842167 | 16709518 | 0 | 0 (same as check_parquet.py)
+SELECT COUNT_IF(type = 'numeric')                            AS numeric_rows,
+       COUNT_IF(type = 'text')                               AS text_rows,
+       COUNT_IF(type = 'numeric' AND value_num IS NULL)      AS numeric_missing_num,
+       COUNT_IF(type <> 'numeric' AND value_num IS NOT NULL) AS text_with_num
+FROM observations;
+
+
 -- =============================================================================
 -- FINAL CHECK — row counts for all six RAW tables in one view
+-- Result (matches every COPY output): CONDITIONS 2,093,392 · ENCOUNTERS 3,377,145 ·
+-- MEDICATIONS 2,903,828 · OBSERVATIONS 43,551,685 · PATIENTS 57,537 ·
+-- PROCEDURES 9,388,622  -> 61,372,209 rows total, 0 load errors
 -- =============================================================================
 SELECT table_name, row_count
 FROM carepulse_db.information_schema.tables
 WHERE table_schema = 'RAW'
 ORDER BY table_name;
+
+-- Load times + which warehouse ran each COPY (read back from query history).
+-- Result: patients 2.0s, encounters 16.6s (CAREPULSE_WH); conditions 6.2s,
+-- medications 11.8s, procedures 26.6s, observations 117.5s (COMPUTE_WH — the
+-- workspace tab's default; fixed by setting user defaults in 01_setup.sql STEP 7).
+SELECT REGEXP_SUBSTR(query_text, 'COPY INTO (\\w+)', 1, 1, 'i', 1) AS table_name,
+       ROUND(total_elapsed_time / 1000, 1)                         AS seconds,
+       warehouse_name
+FROM TABLE(carepulse_db.information_schema.query_history(result_limit => 200))
+WHERE query_type = 'COPY'
+  AND execution_status = 'SUCCESS'
+ORDER BY start_time;
