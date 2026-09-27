@@ -6,7 +6,8 @@
 -- Parquet file format and external stage over the Glue curated/ output.
 --
 -- Account : AWS us-east-1 (same region as s3://carepulse-raw-preetham-2026)
---           CURRENT_ACCOUNT() = OIC72962 (locator); UI shows HNC80452
+--           Identifiers: ILBLMBM-HNC80452 (org-account, use for connections),
+--           HNC80452 (account name), OIC72962 (locator = CURRENT_ACCOUNT())
 -- Edition : Standard
 --
 -- Safe to re-run: every CREATE uses IF NOT EXISTS.
@@ -116,6 +117,49 @@ CREATE STAGE IF NOT EXISTS curated_stage
 -- expect 6 Parquet files, one per table folder. "Last modified" is S3's own
 -- object timestamp, read live — nothing is copied until COPY INTO.
 LIST @curated_stage;
+
+
+-- -----------------------------------------------------------------------------
+-- STEP 5 — Key-pair auth for VS Code / Python (no password, no MFA prompt, no expiry)
+-- Key pair generated locally in Git Bash, OUTSIDE the repo (never committed):
+--   cd ~/.snowflake
+--   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out carepulse_key.p8 -nocrypt
+--   openssl rsa -in carepulse_key.p8 -pubout -out carepulse_key.pub
+--   grep -v "PUBLIC KEY" carepulse_key.pub | tr -d '\n'; echo    # one-line public key
+-- Only the PUBLIC key goes into Snowflake. The .p8 private key never leaves the PC.
+-- -----------------------------------------------------------------------------
+USE ROLE ACCOUNTADMIN;   -- changing a user's auth settings is an account-level change
+
+ALTER USER VXS58020 SET RSA_PUBLIC_KEY = '<one-line public key from ~/.snowflake/carepulse_key.pub>';
+
+-- Verify: RSA_PUBLIC_KEY_FP should show SHA256:... (run both statements together —
+-- RESULT_SCAN(LAST_QUERY_ID()) reads whatever ran immediately before it)
+DESC USER VXS58020;
+SELECT "property", "value"
+FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+WHERE "property" LIKE 'RSA_PUBLIC_KEY%';
+
+-- VS Code Snowflake extension: Auth = Key Pair, account ILBLMBM-HNC80452,
+-- user VXS58020, key file C:\Users\Preetham\.snowflake\carepulse_key.p8
+-- Rotation: register the new key in RSA_PUBLIC_KEY_2, switch tools, then clear slot 1.
+
+
+-- -----------------------------------------------------------------------------
+-- STEP 6 — GitHub API integration for a Git-linked Snowsight workspace
+-- Public repo -> read-only (Pull only, no token). VS Code is the one place that
+-- pushes; Snowsight pulls. Allowed prefix limits it to this GitHub account.
+-- -----------------------------------------------------------------------------
+USE ROLE ACCOUNTADMIN;
+
+CREATE API INTEGRATION IF NOT EXISTS github_api_int
+    API_PROVIDER         = git_https_api
+    API_ALLOWED_PREFIXES = ('https://github.com/preethamsamatham')
+    ENABLED              = TRUE;
+
+GRANT USAGE ON INTEGRATION github_api_int TO ROLE SYSADMIN;
+
+-- Then in Snowsight: Workspaces -> + -> Git workspace ->
+--   https://github.com/preethamsamatham/carepulse-pipeline, GITHUB_API_INT, Public repository
 
 
 -- -----------------------------------------------------------------------------
