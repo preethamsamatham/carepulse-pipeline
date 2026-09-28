@@ -138,11 +138,11 @@ footer b{color:var(--onyx)}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 6</span>
+    <span class="meta-pill">Sessions: 8</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: Snowflake on AWS — stage live, loading next</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in progress</span>
   </div>
 </header>
 
@@ -366,6 +366,22 @@ footer b{color:var(--onyx)}
     <a href="#stage-verified"><span class="dot"></span>Stage + LIST verified</a>
     <a href="#session6-doubts"><span class="dot"></span>Doubts answered</a>
     <a href="#session6-open"><span class="dot"></span>Open items</a>
+    <a href="#session7"><span class="dot"></span>Session 7 — RAW loaded</a>
+    <a href="#infer-schema"><span class="dot"></span>INFER_SCHEMA</a>
+    <a href="#using-template"><span class="dot"></span>USING TEMPLATE + COPY</a>
+    <a href="#raw-loaded"><span class="dot"></span>Six tables verified</a>
+    <a href="#single-file-parallelism"><span class="dot"></span>File parallelism finding</a>
+    <a href="#start-reserved"><span class="dot"></span>START reserved word</a>
+    <a href="#vscode-keypair"><span class="dot"></span>VS Code key-pair auth</a>
+    <a href="#git-workspace"><span class="dot"></span>Git workspace</a>
+    <a href="#session7-open"><span class="dot"></span>Open items</a>
+    <a href="#session8"><span class="dot"></span>Session 8 — Label defined</a>
+    <a href="#encounter-profile"><span class="dot"></span>Encounter classes</a>
+    <a href="#label-inflated"><span class="dot"></span>21% label was inflated</a>
+    <a href="#episodes-gaps-islands"><span class="dot"></span>Episodes (gaps-and-islands)</a>
+    <a href="#label-exclusions"><span class="dot"></span>Exclusions + funnel</a>
+    <a href="#core-patients-design"><span class="dot"></span>CORE conventions</a>
+    <a href="#session8-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -1798,7 +1814,7 @@ python glue-transform\check_parquet.py glue-transform\check-observations\&lt;par
           <tr><th>Item</th><th>Next action</th></tr>
           <tr><td>PII columns in curated output</td><td><b>Done in <a href="#pii-masking">Session 6</a></b> — 15 columns dropped, ZIP → ZIP3</td></tr>
           <tr><td><code>encounters</code> typed run time</td><td>Read the Duration from the Glue console Runs tab and fill in above</td></tr>
-          <tr><td>INT96 timestamps in Parquet</td><td>Decide the Parquet timestamp format at the Snowflake/Athena stage</td></tr>
+          <tr><td>INT96 timestamps in Parquet</td><td><b>Closed in <a href="#raw-loaded">Session 7</a></b> — arrive in Snowflake at the exact second, no change needed</td></tr>
           <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification, or a separate curated bucket</td></tr>
           <tr><td><code>repartition(1)</code></td><td>Still fine at 292s; the natural before/after optimization target if runtime grows</td></tr>
           <tr><td>Live Glue logs</td><td>Optional: <code>--enable-continuous-cloudwatch-log</code> in the job's <code>default_arguments</code></td></tr>
@@ -2124,15 +2140,468 @@ ALTER WAREHOUSE compute_wh SUSPEND;
         <h3><span class="tag error">Open items</span> Carried forward</h3>
         <table>
           <tr><th>Item</th><th>Next action</th></tr>
-          <tr><td>Load RAW tables</td><td><code>02_load_raw.sql</code>: <code>INFER_SCHEMA</code> → <code>CREATE TABLE ... USING TEMPLATE</code> → <code>COPY INTO</code>; start with <code>patients</code>, check 57,537 rows</td></tr>
-          <tr><td>INT96 timestamps</td><td>Check how Snowflake types <code>DATE</code>/<code>START</code>/<code>STOP</code> in the loaded tables</td></tr>
+          <tr><td>Load RAW tables</td><td><b>Done in <a href="#raw-loaded">Session 7</a></b> — 6 tables, 61,372,209 rows</td></tr>
+          <tr><td>INT96 timestamps</td><td><b>Closed in Session 7</b></td></tr>
           <tr><td>Raw bucket holds full PII</td><td>Scope raw access tightly (IAM) or move raw to its own bucket</td></tr>
           <tr><td><code>ZIP3 = '000'</code> (14,618 patients, same as NULL FIPS)</td><td>Treat as unknown in the feature layer</td></tr>
           <tr><td>Safe Harbor &lt;20,000-population ZIP3 rule</td><td>Not applied — known limitation</td></tr>
           <tr><td><code>encounters</code> typed run time (Session 5)</td><td>Still not recorded</td></tr>
           <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification</td></tr>
-          <tr><td>Snowflake full account identifier</td><td>Record the <code>ORGNAME-ACCOUNTNAME</code> form before any code connection</td></tr>
+          <tr><td>Snowflake full account identifier</td><td><b>Recorded:</b> <code>ILBLMBM-HNC80452</code></td></tr>
           <tr><td>Commit</td><td><code>snowflake/01_setup.sql</code> + <code>infra/main.tf</code> together</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session" id="session7">
+      <div class="session-head">
+        <h2>Session 7 — RAW Layer Loaded: Six Tables, 61.4M Rows, Verified</h2>
+        <span class="date">Sep 27–28, 2026</span>
+      </div>
+
+      <div class="topic decision" id="infer-schema">
+        <h3><span class="tag concept">Concept</span> <code>INFER_SCHEMA</code> — read the schema Glue stored, don't type it</h3>
+        <p>A <b>table function</b>: pointed at staged files, it returns one row per column found (name, type,
+        nullability, position). For Parquet it reads only the file footer — no rows loaded, nothing created.
+        <code>TABLE(...)</code> wraps it so it can sit in <code>FROM</code> like a table.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT COLUMN_NAME, TYPE, NULLABLE, ORDER_ID
+FROM TABLE(INFER_SCHEMA(
+    LOCATION    => '@curated_stage/patients/',
+    FILE_FORMAT => 'parquet_format'
+))
+ORDER BY ORDER_ID;</code></pre></div>
+        <table>
+          <tr><th>Parameter</th><th>Purpose</th></tr>
+          <tr><td><code>LOCATION</code> (required)</td><td>Stage + path — one table's folder</td></tr>
+          <tr><td><code>FILE_FORMAT</code> (required)</td><td>Must be a <i>named</i> file format object (why <code>parquet_format</code> exists)</td></tr>
+          <tr><td><code>FILES</code></td><td>Only specific files (e.g. a folder mixing old/new schemas)</td></tr>
+          <tr><td><code>IGNORE_CASE</code></td><td><code>TRUE</code> uppercases names — <code>Id</code> → <code>ID</code></td></tr>
+          <tr><td><code>MAX_FILE_COUNT</code> / <code>MAX_RECORDS_PER_FILE</code></td><td>Sampling limits; matter for CSV/JSON, not Parquet (schema is in the footer)</td></tr>
+          <tr><td><code>KIND</code></td><td><code>STANDARD</code> (default) or <code>ICEBERG</code></td></tr>
+        </table>
+        <p style="margin-top:10px">Output columns: <code>COLUMN_NAME</code>, <code>TYPE</code>, <code>NULLABLE</code>,
+        <code>EXPRESSION</code> (e.g. <code>$1:BIRTHDATE::DATE</code>), <code>FILENAMES</code>, <code>ORDER_ID</code>.
+        Formats: Parquet, Avro, ORC, JSON, CSV (CSV needs <code>PARSE_HEADER = TRUE</code>).</p>
+        <div class="why"><b>Why it's safe here after "never infer" in Session 5:</b> that rule was about CSV, where
+        types are <i>guessed</i> from text (<code>01086</code> → <code>1086</code>). Parquet <i>stores</i> the types Glue
+        wrote, so inference is reading, not guessing — and Glue's <code>SCHEMAS</code> dict stays the single source of
+        truth. Patients result: 14 columns, dates as <code>DATE</code>, money <code>NUMBER(14,2)</code>,
+        <code>INCOME</code> <code>NUMBER(38,0)</code> (Snowflake's one integer type — INT/BIGINT are aliases),
+        text as <code>TEXT</code>.</div>
+      </div>
+
+      <div class="topic decision" id="using-template">
+        <h3><span class="tag decision">Decision</span> <code>CREATE TABLE ... USING TEMPLATE</code> + <code>COPY INTO</code> by column name</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>CREATE TABLE IF NOT EXISTS patients
+  USING TEMPLATE (
+    SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)
+    FROM TABLE(INFER_SCHEMA(
+      LOCATION    => '@curated_stage/patients/',
+      FILE_FORMAT => 'parquet_format',
+      IGNORE_CASE => TRUE))
+  );
+
+COPY INTO patients
+  FROM @curated_stage/patients/
+  FILE_FORMAT = (FORMAT_NAME = 'parquet_format')
+  MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;</code></pre></div>
+        <table>
+          <tr><th>Piece</th><th>Why</th></tr>
+          <tr><td><code>OBJECT_CONSTRUCT(*)</code></td><td>Turns each schema row into one object <code>{"COLUMN_NAME":..,"TYPE":..}</code></td></tr>
+          <tr><td><code>ARRAY_AGG ... ORDER BY ORDER_ID</code></td><td>One array, in file column order — without the ORDER BY, column order isn't guaranteed</td></tr>
+          <tr><td><code>USING TEMPLATE</code></td><td>Builds one column per object — ~70 column definitions across six tables, none typed by hand</td></tr>
+          <tr><td><code>IGNORE_CASE => TRUE</code></td><td>Otherwise the column is <code>"Id"</code> (quoted, case-sensitive) and every query needs the quotes forever</td></tr>
+          <tr><td><code>MATCH_BY_COLUMN_NAME</code></td><td>Load by name, not position — Snowflake's version of Glue's <code>enforceSchema=false</code></td></tr>
+          <tr><td>default <code>ON_ERROR = ABORT_STATEMENT</code></td><td>Fail fast, like Glue FAILFAST (COPY output <code>error_limit = 1</code>)</td></tr>
+          <tr><td><code>VARCHAR(16777216)</code> in <code>DESC TABLE</code></td><td>That's <code>TEXT</code>: max length is free, only real characters are stored</td></tr>
+        </table>
+        <div class="why"><b>Load history:</b> <code>COPY</code> remembers loaded files for 64 days, so a re-run
+        loads 0 rows — no duplicates (Spotify war story #22). Deliberate reload: <code>TRUNCATE</code>, then
+        <code>FORCE = TRUE</code>. Full script: <code>snowflake/02_load_raw.sql</code>.</div>
+      </div>
+
+      <div class="topic decision" id="raw-loaded">
+        <h3><span class="tag decision">Verified</span> All six RAW tables — counts, content, timestamps</h3>
+        <table>
+          <tr><th>Table</th><th>Rows (parsed = loaded)</th><th>COPY time</th><th>Warehouse</th><th>Checked against</th></tr>
+          <tr><td>patients</td><td>57,537</td><td>2.0s</td><td>CAREPULSE_WH</td><td>Parquet count, IDs, dates, ZIP3</td></tr>
+          <tr><td>encounters</td><td>3,377,145</td><td>16.6s</td><td>CAREPULSE_WH</td><td>Known raw-CSV row, timestamps</td></tr>
+          <tr><td>conditions</td><td>2,093,392</td><td>6.2s</td><td>COMPUTE_WH</td><td>COPY + table count</td></tr>
+          <tr><td>medications</td><td>2,903,828</td><td>11.8s</td><td>COMPUTE_WH</td><td>COPY + table count</td></tr>
+          <tr><td>procedures</td><td>9,388,622</td><td>26.6s</td><td>COMPUTE_WH</td><td>COPY + table count</td></tr>
+          <tr><td>observations</td><td>43,551,685</td><td><b>117.5s</b></td><td>COMPUTE_WH</td><td>Parquet count, VALUE_NUM split</td></tr>
+          <tr><td><b>Total</b></td><td><b>61,372,209</b></td><td>~180s</td><td></td><td><b>0 errors across all loads</b></td></tr>
+        </table>
+        <table style="margin-top:10px">
+          <tr><th>Content check</th><th>Result</th></tr>
+          <tr><td>patients: rows · distinct IDs · min/max birthdate · ZIP3 <code>000</code></td><td>57,537 · 57,537 · 1915-10-14 · 2026-09-08 · 14,618 — all match the Parquet</td></tr>
+          <tr><td>encounters row <code>e7e708a7-…-6730955ab4e9</code></td><td><code>2026-03-24 15:27:18.000 → 15:42:18.000</code>, wellness, 347.38 — identical to the raw CSV <code>2026-03-24T15:27:18Z</code></td></tr>
+          <tr><td>observations VALUE_NUM</td><td>26,842,167 numeric · 16,709,518 text · 0 numeric missing a number · 0 text with one — same as <code>check_parquet.py</code></td></tr>
+          <tr><td>FINAL CHECK (<code>information_schema.tables</code>)</td><td>All six row counts equal their COPY outputs — an independent second count</td></tr>
+        </table>
+        <div class="why"><b>INT96 question closed (open since Session 5):</b> Spark's legacy INT96 timestamps, written
+        with a UTC session, arrive in Snowflake as timestamps at the <i>same second</i> — no timezone shift, no Glue change
+        needed. Load times were read back from <code>information_schema.query_history()</code>, which also exposed the
+        warehouse each COPY actually used.</div>
+      </div>
+
+      <div class="topic decision" id="single-file-parallelism">
+        <h3><span class="tag decision">Finding</span> One file per table caps COPY at one thread — the next optimization experiment</h3>
+        <p>Glue's <code>repartition(1)</code> writes each table as a single Parquet file. Snowflake's COPY parallelizes
+        <i>across files</i>; one file is processed by one thread. An X-Small warehouse has 8 threads, so the 43.5M-row
+        observations load (423MB, 117.5s, ~371K rows/s) likely used one of eight. Snowflake recommends roughly 100–250MB
+        compressed per file.</p>
+        <div class="why"><b>Planned before/after:</b> <code>repartition(1)</code> → 1 file → 117.5s COPY / 292s Glue;
+        then <code>repartition(8)</code> → 8 files → re-measure both on the same warehouse. One line of code, two
+        measurements — the "recorded optimization metric" this project is meant to show.</div>
+      </div>
+
+      <div class="topic error" id="start-reserved">
+        <h3><span class="tag error">Gotcha</span> <code>START</code> is a reserved word in Snowflake</h3>
+        <p><code>SELECT id, start, stop, ... FROM encounters</code> → <code>syntax error line 108 at position 16 unexpected ','</code>.
+        Position 16 is the comma after <code>start</code>: Snowflake reserves <code>START</code> (<code>START WITH</code>),
+        so it expected keyword syntax, not a list separator. The editor even coloured <code>start</code>/<code>stop</code>
+        like keywords.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT id, "START", "STOP", encounterclass, total_claim_cost FROM encounters ...</code></pre></div>
+        <div class="why"><b>Quoted names are case-sensitive</b> — <code>"START"</code> matches the uppercase column,
+        <code>"start"</code> would not. Affects encounters, conditions, medications, procedures → rename to
+        <code>start_ts</code>/<code>stop_ts</code> in CORE; RAW keeps source names.</div>
+      </div>
+
+      <div class="topic error" id="infer-comma-gotcha">
+        <h3><span class="tag error">Gotcha</span> Two small INFER_SCHEMA failures</h3>
+        <p><b>1. Missing comma</b> after <code>LOCATION => '...'</code> — named parameters are separated by commas like any
+        function call. <b>2. Unqualified names</b> — <code>@curated_stage</code> and <code>'parquet_format'</code> resolve
+        against the <i>current</i> schema; a fresh worksheet has none, so run <code>USE SCHEMA carepulse_db.raw</code> first.</p>
+      </div>
+
+      <div class="topic error" id="compute-wh-again">
+        <h3><span class="tag error">Gotcha</span> Four loads ran on <code>COMPUTE_WH</code> — fixed at the root</h3>
+        <p>The Git-workspace tab opened with the account defaults (ACCOUNTADMIN / COMPUTE_WH); highlighting single
+        statements skipped the file's <code>USE WAREHOUSE</code>. Third occurrence, so fix the cause, not the symptom:</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>USE ROLE ACCOUNTADMIN;
+ALTER USER VXS58020 SET DEFAULT_ROLE      = SYSADMIN
+                        DEFAULT_WAREHOUSE = carepulse_wh
+                        DEFAULT_NAMESPACE = carepulse_db.raw;</code></pre></div>
+        <div class="why">Every new worksheet, workspace tab and VS Code session now starts right without anyone
+        remembering <code>USE</code> statements. Low cost this time (COMPUTE_WH is also X-Small, auto-suspend 60s), but
+        the habit matters more than the credits. <code>01_setup.sql</code> STEP 7.</div>
+      </div>
+
+      <div class="topic decision" id="vscode-keypair">
+        <h3><span class="tag decision">Decision</span> VS Code → Snowflake with key-pair auth</h3>
+        <table>
+          <tr><th>Method</th><th>Verdict</th></tr>
+          <tr><td><b>Key Pair</b></td><td>✅ Never logs in again — the key file <i>is</i> the login; no password, no MFA prompt, no expiry. Same key serves Python/Snowpark/CI later.</td></tr>
+          <tr><td>Sign in with Snowflake</td><td>Zero setup, but the browser pops up whenever the session expires</td></tr>
+          <tr><td>Username/password</td><td>New accounts enforce MFA for passwords → a push approval every time</td></tr>
+          <tr><td>Programmatic Access Token</td><td>Expires (15 days default) and needs a network policy for normal users. First attempt: <code>Authentication failed. Error code: 3</code> — token file path was empty.</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code># Git Bash, outside the repo
+cd ~/.snowflake
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out carepulse_key.p8 -nocrypt
+openssl rsa -in carepulse_key.p8 -pubout -out carepulse_key.pub
+grep -v "PUBLIC KEY" carepulse_key.pub | tr -d '\n'; echo
+
+-- Snowflake
+ALTER USER VXS58020 SET RSA_PUBLIC_KEY = '&lt;one-line public key&gt;';
+DESC USER VXS58020;
+SELECT "property", "value" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+WHERE "property" LIKE 'RSA_PUBLIC_KEY%';</code></pre></div>
+        <table>
+          <tr><th>Detail</th><th>Why</th></tr>
+          <tr><td>Keys in <code>~/.snowflake</code></td><td>Outside <code>C:\dev\carepulse</code> — the private key can't be committed by accident. Sizes: <code>.p8</code> 1,732 B, <code>.pub</code> 460 B.</td></tr>
+          <tr><td><code>; echo</code></td><td><code>tr -d '\n'</code> strips the final newline too, gluing the key to the next prompt — easy to copy short. Check it starts <code>MIIBIjANBg</code>, ends <code>IDAQAB</code>.</td></tr>
+          <tr><td>Public vs private</td><td><code>BEGIN PUBLIC KEY</code> can only verify — safe to share. <code>BEGIN PRIVATE KEY</code> is the login — never pasted anywhere; if leaked, regenerate.</td></tr>
+          <tr><td><code>RESULT_SCAN(LAST_QUERY_ID())</code></td><td><code>DESC USER</code> output can't take a WHERE; RESULT_SCAN re-reads it as a table. Must run immediately after, same session. Columns are lowercase-quoted (<code>"property"</code>).</td></tr>
+          <tr><td><code>RSA_PUBLIC_KEY_2</code></td><td>Second slot for zero-downtime rotation: add new key in slot 2, switch tools, clear slot 1</td></tr>
+        </table>
+        <div class="why"><b>Verified:</b> <code>RSA_PUBLIC_KEY_FP = SHA256:IL…</code>. VS Code settings: Key Pair,
+        account <code>ILBLMBM-HNC80452</code>, user <code>VXS58020</code>, key <code>C:\Users\Preetham\.snowflake\carepulse_key.p8</code>,
+        no passphrase (<code>-nocrypt</code>). <b>Identifiers now complete:</b> <code>ILBLMBM-HNC80452</code>
+        (org-account — use for connections) · <code>HNC80452</code> (account name) · <code>OIC72962</code> (locator).</div>
+      </div>
+
+      <div class="topic decision" id="git-workspace">
+        <h3><span class="tag decision">Decision</span> Snowsight Git workspace — read-only, VS Code is the only writer</h3>
+        <p>The VS Code extension doesn't sync Snowsight worksheets; GitHub is the bridge. A Git workspace mirrors the
+        existing repo (it doesn't create a new one, and changes nothing on GitHub).</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>CREATE API INTEGRATION IF NOT EXISTS github_api_int
+  API_PROVIDER         = git_https_api
+  API_ALLOWED_PREFIXES = ('https://github.com/preethamsamatham')
+  ENABLED              = TRUE;
+GRANT USAGE ON INTEGRATION github_api_int TO ROLE SYSADMIN;
+-- Snowsight: Workspaces -> + -> Git workspace -> repo URL, GITHUB_API_INT, Public repository</code></pre></div>
+        <p><b>Flow:</b> write in VS Code → <code>git push</code> → Snowsight <b>Changes → Pull</b> → run. Public repo =
+        Pull only; push would need a GitHub PAT in a Snowflake secret — skipped on purpose, so one place writes and
+        copies can't diverge.</p>
+        <div class="why"><b>Gotcha — conflict from editing in the Git workspace:</b> the updated
+        <code>02_load_raw.sql</code> was pasted into the Git workspace (marked <b>M</b>) <i>and</i> pushed from VS Code; the
+        next Pull reported <b>1 conflict found</b>. Git compares versions, not intentions, even when the contents match.
+        Fix: discard the Snowsight-only change (GitHub's copy wins — this workspace can never push), Pull → "Already up
+        to date". <b>Rule:</b> only open and run files in the Git workspace; experiment in <i>My Workspace</i>.</div>
+      </div>
+
+      <div class="topic" id="sync-check">
+        <h3><span class="tag concept">Technique</span> Verifying PC, GitHub and Snowsight match</h3>
+        <p>A commit hash fingerprints the whole repo at that moment: same hash + no uncommitted changes everywhere =
+        identical files.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>git fetch                 # get GitHub's latest without touching files
+git status                # want: up to date with 'origin/master' + working tree clean
+git log --oneline -1      # want: HEAD -> master, origin/master on the same line</code></pre></div>
+        <p>GitHub: the latest commit hash shown above the file list. Snowsight: <b>Pull</b> → "Already up to date"
+        <i>and</i> an empty Changes list (no M/A markers). Verified at <code>5616047</code> across all three.
+        <code>git fetch</code> matters: without it, <code>git status</code> compares against GitHub as of your last
+        fetch/push.</p>
+      </div>
+
+      <div class="topic" id="session7-doubts">
+        <h3><span class="tag concept">Doubts asked &amp; answered</span> Quick reference</h3>
+        <table>
+          <tr><th>Question</th><th>Answer</th></tr>
+          <tr><td>What is INFER_SCHEMA, why use it, what parameters?</td><td>See <a href="#infer-schema">above</a> — reads Parquet footer types; LOCATION, FILE_FORMAT required.</td></tr>
+          <tr><td>Which VS Code sign-in avoids logging in again?</td><td>Key Pair (see <a href="#vscode-keypair">above</a>).</td></tr>
+          <tr><td>Can I paste the RSA key here?</td><td>The public key yes; the private key never.</td></tr>
+          <tr><td>Can Snowsight worksheets be pulled into VS Code?</td><td>Not directly — via GitHub + a Git workspace, or copy/paste.</td></tr>
+          <tr><td>Does a Git workspace create a new repo?</td><td>No — it mirrors the existing one, read-only with public auth.</td></tr>
+          <tr><td>Where do I check the pulled files?</td><td>Workspace panel → <b>Files</b> tab → <code>snowflake/</code>.</td></tr>
+          <tr><td>What does "ongoing Git operation" mean?</td><td>The Pull is still running; wait, then check Files.</td></tr>
+          <tr><td>Why does <code>INCOME</code> show <code>NUMBER(38,0)</code>?</td><td>Snowflake has one integer type; INT/BIGINT/SMALLINT are aliases for it.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="session7-commands">
+        <h3><span class="tag concept">Reference</span> Commands used this session</h3>
+        <div class="cmd-row"><code class="cmdline">DESC TABLE encounters;</code><p>Column names and types of a loaded table.</p></div>
+        <div class="cmd-row"><code class="cmdline">SELECT table_name, row_count FROM carepulse_db.information_schema.tables WHERE table_schema = 'RAW';</code><p>Independent row counts for every RAW table.</p></div>
+        <div class="cmd-row"><code class="cmdline">SELECT ... FROM TABLE(information_schema.query_history(result_limit => 200)) WHERE query_type = 'COPY';</code><p>Read back each COPY's duration and warehouse after the fact.</p></div>
+        <div class="cmd-row"><code class="cmdline">SELECT ... FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) WHERE ...;</code><p>Filter the output of a SHOW/DESC command run immediately before.</p></div>
+        <div class="cmd-row"><code class="cmdline">git fetch; git status; git log --oneline -1</code><p>Confirm the PC matches GitHub.</p></div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you create your Snowflake tables — did you write the DDL by hand?</p>
+        <p class="a">No. The Glue job already writes typed Parquet from explicit Spark schemas, so I used
+        INFER_SCHEMA to read those types from the Parquet footers and CREATE TABLE USING TEMPLATE to build each table
+        from them — about seventy column definitions with none typed by hand, and the Glue schema stays the single source
+        of truth. I load with COPY INTO matching columns by name rather than position, and verify each table against
+        counts and values measured upstream: row counts, a known timestamp from the raw CSV to rule out timezone shifts,
+        and the numeric/text split in observations.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Your biggest table took two minutes to load on the smallest warehouse. How would you speed it up without paying for a bigger one?</p>
+        <p class="a">Check the file layout before the warehouse size. Snowflake parallelizes COPY across files, and my
+        Glue job wrote each table as a single file, so the 43-million-row load likely ran on one of the X-Small warehouse's
+        eight threads. Splitting the output into files in Snowflake's recommended 100–250 MB range should let all threads
+        work — and it probably speeds up the Glue write too, since repartition(1) funnels everything through one task.
+        I'd measure both before and after on the same warehouse rather than assume.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do your tools authenticate to Snowflake without passwords?</p>
+        <p class="a">Key-pair authentication. I generate an RSA key pair locally, register only the public key on my
+        Snowflake user, and point VS Code — and later Python and CI — at the private key file, which lives outside the
+        repo and is never shared. There's no password to leak or expire and no MFA prompt for automated tools. Rotation
+        is zero-downtime because Snowflake holds two public keys per user: add the new one in the second slot, switch the
+        clients, then remove the old one.</p>
+      </div>
+
+      <div class="topic error" id="session7-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>CORE layer</td><td>Clean names/types, one row per encounter, joins the readmission model needs</td></tr>
+          <tr><td><code>START</code>/<code>STOP</code> reserved</td><td>Rename to <code>start_ts</code>/<code>stop_ts</code> (<code>start_date</code>/<code>stop_date</code> in conditions) in CORE</td></tr>
+          <tr><td>ZIP3 <code>000</code> / NULL FIPS (14,618 patients)</td><td>Treat as unknown in CORE / feature layer</td></tr>
+          <tr><td>File-parallelism experiment</td><td><code>repartition(8)</code> → re-measure Glue (292s) and observations COPY (117.5s)</td></tr>
+          <tr><td>Raw bucket holds full PII</td><td>Scope raw IAM access tightly or split buckets</td></tr>
+          <tr><td>Lambda woken by non-CSV writes</td><td><code>filter_suffix = ".csv"</code> on the S3 notification</td></tr>
+          <tr><td><code>encounters</code> Glue run time (Session 5)</td><td>Still not recorded</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session" id="session8">
+      <div class="session-head">
+        <h2>Session 8 — Profiling RAW and Defining the Readmission Label</h2>
+        <span class="date">Sep 28, 2026</span>
+      </div>
+
+      <div class="topic decision" id="core-purpose">
+        <h3><span class="tag decision">Decision</span> Profile first, then build CORE — and keep the profiling as a file</h3>
+        <p>RAW is the data exactly as it arrived; CORE is the cleaned, consistent layer everything downstream reads, so
+        each fix happens once. The readmission definition depends on values nobody had looked at yet, so the first step
+        was profiling — in its own committed file, <code>snowflake/03_profile_raw.sql</code>, with each result written
+        under its query. Those results are the <i>reasons</i> behind CORE's design.</p>
+        <table>
+          <tr><th>File</th><th>Purpose</th></tr>
+          <tr><td><code>01_setup.sql</code></td><td>Account, integrations, stage, user defaults</td></tr>
+          <tr><td><code>02_load_raw.sql</code></td><td>Load the six RAW tables</td></tr>
+          <tr><td><code>03_profile_raw.sql</code></td><td>Explore RAW before designing CORE</td></tr>
+          <tr><td><code>04_core.sql</code></td><td>Build CORE (started)</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="start-stop-meaning">
+        <h3><span class="tag concept">Doubt answered</span> What <code>START</code> and <code>STOP</code> mean in each table</h3>
+        <table>
+          <tr><th>Table</th><th>START</th><th>STOP</th><th>NULL STOP</th></tr>
+          <tr><td>encounters</td><td>Visit begins (inpatient: admission)</td><td>Visit ends (inpatient: discharge)</td><td>—</td></tr>
+          <tr><td>conditions</td><td>Diagnosed / onset</td><td>Resolved</td><td>Still ongoing (chronic)</td></tr>
+          <tr><td>medications</td><td>Prescription started</td><td>Ended</td><td>Still taking it</td></tr>
+          <tr><td>procedures</td><td>Began</td><td>Finished</td><td>—</td></tr>
+        </table>
+        <div class="why">The whole label is built from them: length of stay = <code>STOP − START</code>; readmission =
+        gap between one inpatient STOP (discharge) and the next inpatient START. CORE renames them to names that say
+        what they mean (<code>admitted_at</code>/<code>discharged_at</code>, <code>onset_date</code>/<code>resolved_date</code>).</div>
+      </div>
+
+      <div class="topic" id="datediff-explained">
+        <h3><span class="tag concept">Doubt answered</span> <code>ROUND(AVG(DATEDIFF('hour', "START", "STOP")), 1)</code></h3>
+        <p>Read inside out: <b>DATEDIFF</b> = length of one visit in hours (per row) → <b>AVG</b> = average per
+        <code>GROUP BY</code> group (NULLs skipped) → <b>ROUND(…, 1)</b> = one decimal place.</p>
+        <div class="why"><b>Catch:</b> <code>DATEDIFF</code> counts unit <i>boundaries crossed</i>, not elapsed time —
+        15:27→15:42 = 0 hours, 15:50→16:05 = 1 hour. Visible in the profile: 15-minute wellness visits averaged 0.9 h.
+        For exact durations: <code>DATEDIFF('minute', a, b) / 60.0</code> (<code>60.0</code> keeps decimals).</div>
+      </div>
+
+      <div class="topic decision" id="encounter-profile">
+        <h3><span class="tag decision">Verified</span> Encounter classes — inpatient is the label's backbone</h3>
+        <table>
+          <tr><th>Class</th><th>Encounters</th><th>Patients</th><th>Avg hours</th><th>Role</th></tr>
+          <tr><td>ambulatory</td><td>1,857,470</td><td>56,417</td><td>1.9</td><td>Feature</td></tr>
+          <tr><td>wellness</td><td>705,558</td><td>57,537</td><td>0.9</td><td>Feature — covers every patient</td></tr>
+          <tr><td>outpatient</td><td>434,096</td><td>53,079</td><td>0.6</td><td>Feature</td></tr>
+          <tr><td>urgentcare</td><td>155,123</td><td>21,834</td><td>0.6</td><td>Feature</td></tr>
+          <tr><td>emergency</td><td>126,269</td><td>40,657</td><td>5.7</td><td>Feature — ER visit, <i>not</i> a readmission</td></tr>
+          <tr><td><b>inpatient</b></td><td><b>56,302</b></td><td><b>19,904</b></td><td><b>113.6 (~4.7 d)</b></td><td><b>Index stays + readmissions</b></td></tr>
+          <tr><td>home</td><td>17,232</td><td>1,003</td><td>0.3</td><td>Feature</td></tr>
+          <tr><td>snf</td><td>8,438</td><td>7,707</td><td>473.6</td><td>Feature — post-acute care, not a readmission</td></tr>
+          <tr><td>virtual</td><td>8,368</td><td>3,849</td><td>0.6</td><td>Feature</td></tr>
+          <tr><td>hospice</td><td>8,289</td><td>6,838</td><td>515.9</td><td>Exclusion trigger</td></tr>
+        </table>
+        <div class="why">Sanity checks: wellness patients = 57,537 = every patient; durations fit each type (inpatient
+        in days, check-ups under an hour, SNF/hospice in weeks) — further proof the timestamps loaded correctly.
+        ~2.8 inpatient stays per admitted patient → plenty of positive examples.</div>
+      </div>
+
+      <div class="topic error" id="label-inflated">
+        <h3><span class="tag error">Finding</span> The naive label said 21% — 29% of its "readmissions" were artifacts</h3>
+        <p><code>LEAD("START") OVER (PARTITION BY patient ORDER BY "START")</code> gives each inpatient stay the same
+        patient's next admission (NULL for their last stay). Counting <code>DATEDIFF('day', discharge, next) &lt;= 30</code>:
+        <b>56,302 stays · 11,815 readmitted · 21.0%</b>. But <code>&lt;= 30</code> is also true for 0 and negative gaps.</p>
+        <table>
+          <tr><th>Gap</th><th>Stays</th><th>Meaning</th></tr>
+          <tr><td>negative</td><td>789</td><td>Overlapping records — not a readmission</td></tr>
+          <tr><td>0 days</td><td>2,581</td><td>Same-day transfer — one continuous stay split in two</td></tr>
+          <tr><td>1–30 days</td><td>8,445</td><td>Real readmission</td></tr>
+          <tr><td>&gt; 30 days</td><td>24,583</td><td>Not a readmission</td></tr>
+        </table>
+        <div class="why"><b>Reconciliation:</b> 789 + 2,581 + 8,445 = 11,815 ✓. 36,398 stays have a next stay;
+        56,302 − 36,398 = 19,904 = patients with any inpatient stay (each one's last stay) ✓. A model trained on 21% would
+        have partly learned to detect record-keeping artifacts.</div>
+      </div>
+
+      <div class="topic decision" id="episodes-gaps-islands">
+        <h3><span class="tag decision">Decision</span> Merge touching stays into episodes — gaps-and-islands</h3>
+        <p>Stays that overlap or start the same day the previous one ended belong to one hospital <b>episode</b>;
+        readmission is measured between episodes. Same pattern as the consecutive-login-streak SQL practice.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>flagged  AS (SELECT *, MAX(discharged_at) OVER (PARTITION BY patient ORDER BY admitted_at
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_max_discharge FROM inp),
+numbered AS (SELECT *, CASE WHEN prev_max_discharge IS NULL
+                              OR DATEDIFF('day', prev_max_discharge, admitted_at) > 0
+                            THEN 1 ELSE 0 END AS new_episode FROM flagged),
+episodes AS (SELECT patient, SUM(new_episode) OVER (PARTITION BY patient ORDER BY admitted_at
+                         ROWS UNBOUNDED PRECEDING) AS episode_no, admitted_at, discharged_at FROM numbered),
+episode_span AS (SELECT patient, episode_no, MIN(admitted_at) AS admitted_at,
+                        MAX(discharged_at) AS discharged_at FROM episodes GROUP BY 1, 2)</code></pre></div>
+        <table>
+          <tr><th>Step</th><th>Why</th></tr>
+          <tr><td>Running <code>MAX</code> of earlier discharges</td><td>Not plain <code>LAG</code>: a short stay nested inside a long one would otherwise break the chain</td></tr>
+          <tr><td><code>new_episode</code> = 1 on a gap ≥ 1 day</td><td>Marks where a new island starts</td></tr>
+          <tr><td>Running <code>SUM</code> of the flags</td><td>Turns start markers into episode numbers (1,1,1,2,3,3…)</td></tr>
+          <tr><td><code>MIN</code>/<code>MAX</code> per episode</td><td>One row per episode: first admission → last discharge</td></tr>
+        </table>
+        <div class="why"><b>Result: 52,932 episodes · 8,445 readmitted · 16.0%</b> — within the real-world 15–20% range.
+        52,932 = 56,302 − 3,370 exactly; 8,445 = bucket 3 exactly: artifacts removed, no real readmission lost.</div>
+      </div>
+
+      <div class="topic decision" id="label-exclusions">
+        <h3><span class="tag decision">Decision</span> Exclusions — deaths and hospice</h3>
+        <p>Readmission isn't a meaningful outcome if the patient died in the episode (can't be readmitted — keeping them
+        would teach the model very sick patients are "low risk") or was discharged to hospice (preventing readmission
+        isn't the goal). First RAW-to-RAW join: <code>JOIN patients</code> for <code>deathdate</code>; hospice via
+        <code>EXISTS (SELECT 1 FROM encounters h WHERE … h."START" BETWEEN discharge AND discharge + 1 day)</code>.</p>
+        <table>
+          <tr><th>Label funnel</th><th>Count</th></tr>
+          <tr><td>Inpatient encounters</td><td>56,302</td></tr>
+          <tr><td>Episodes after merging overlaps/transfers</td><td>52,932</td></tr>
+          <tr><td>− died during episode</td><td>991</td></tr>
+          <tr><td>− deathdate <i>before</i> admission (data issue)</td><td>9</td></tr>
+          <tr><td>− discharged to hospice</td><td>7</td></tr>
+          <tr><td><b>Eligible index episodes (training rows)</b></td><td><b>51,925</b></td></tr>
+        </table>
+        <div class="why"><b>Checks:</b> episodes stayed 52,932 after the join → every inpatient encounter's patient
+        exists (referential integrity). Exactly 1,000 deaths looked too neat — splitting by timing found <b>9 patients
+        admitted after their recorded death</b>, a Synthea data-quality issue to flag separately, not hide inside "deaths".
+        Hospice = 7 depends on the 1-day window — documented assumption.</div>
+      </div>
+
+      <div class="topic decision" id="core-patients-design">
+        <h3><span class="tag decision">Decision</span> CORE conventions — started with <code>core.patients</code></h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>CREATE OR REPLACE TABLE core.patients AS
+SELECT id AS patient_id, birthdate AS birth_date, deathdate AS death_date,
+       gender, race, ethnicity, marital AS marital_status, state, county, fips,
+       NULLIF(zip3, '000') AS zip3,      -- unknown -> NULL
+       (zip3 &lt;&gt; '000')     AS geo_known, -- explicit flag for the model
+       healthcare_expenses, healthcare_coverage, income
+FROM carepulse_db.raw.patients;</code></pre></div>
+        <table>
+          <tr><th>Convention</th><th>Why</th></tr>
+          <tr><td><code>CREATE OR REPLACE ... AS SELECT</code> in CORE (vs <code>IF NOT EXISTS</code> in RAW)</td><td>CORE is derived and rebuildable — re-running applies current logic. RAW is the loaded source; never replaced silently.</td></tr>
+          <tr><td>IDs named for what they identify (<code>patient_id</code>)</td><td>Joins read clearly: <code>e.patient_id = p.patient_id</code></td></tr>
+          <tr><td><code>NULLIF(zip3,'000')</code> + <code>geo_known</code></td><td>"Unknown" becomes a real NULL, while the fact that it's unknown stays available as a feature</td></tr>
+          <tr><td>Fully qualified <code>carepulse_db.raw.…</code></td><td>The file runs in the <code>core</code> schema</td></tr>
+        </table>
+        <p style="margin-top:10px">Verification pending: expect 57,537 · 57,537 distinct · 14,618 geo unknown · 14,618 NULL zip3.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you define the readmission label, and how do you know it's right?</p>
+        <p class="a">Thirty-day all-cause readmission between inpatient episodes. The naive version — next inpatient
+        admission within 30 days of discharge — gave 21%, but profiling the gaps showed 29% of those were overlapping
+        records or same-day transfers, one continuous stay split into several rows. I merged touching stays into
+        episodes with a gaps-and-islands window pattern, which brought it to 16%, in line with real-world rates. Then I
+        excluded episodes ending in death or hospice, where readmission isn't a meaningful outcome, leaving about 52,000
+        training rows. Every step reconciled back to the source: the merged-away stays equal the overlap plus transfer
+        counts exactly, and no real readmission was lost.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">A number in your data looks suspiciously round. What do you do?</p>
+        <p class="a">Split it before trusting it. My death exclusion came out to exactly 1,000. The condition only checked
+        that death came before discharge, not after admission, so I bucketed by timing: 991 were real in-hospital deaths
+        and 9 were patients admitted after their recorded death — impossible records. They were excluded either way, but
+        now they're flagged as a data-quality issue instead of being hidden inside a clinical category.</p>
+      </div>
+
+      <div class="topic error" id="session8-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td><code>core.patients</code></td><td>Run + verify (57,537 / 14,618)</td></tr>
+          <tr><td><code>core.encounters</code></td><td><code>admitted_at</code>/<code>discharged_at</code>, length of stay in minutes / 60.0</td></tr>
+          <tr><td><code>core.inpatient_episodes</code></td><td>Episode merge + exclusion flags (incl. separate data-issue flag) + 30-day label → 51,925 eligible</td></tr>
+          <tr><td>Branch</td><td>Merge <code>core-layer</code> into <code>master</code> once CORE is built and verified</td></tr>
+          <tr><td>File-parallelism experiment</td><td><code>repartition(8)</code> → re-measure Glue and COPY</td></tr>
         </table>
       </div>
 
