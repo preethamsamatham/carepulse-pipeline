@@ -1,0 +1,50 @@
+version: 2
+sources:
+  - name: "raw"
+    database: "carepulse_db"
+    schema: "raw"
+    tables:
+      - name: "patients"
+        columns:
+          - name: "ID"
+            data_tests:
+              - not_null
+              - unique
+          - name: "BIRTHDATE"
+          - name: "DEATHDATE"
+          - name: "MARITAL"
+          - name: "RACE"
+          - name: "ETHNICITY"
+          - name: "GENDER"
+          - name: "STATE"
+          - name: "COUNTY"
+          - name: "FIPS"
+          - name: "HEALTHCARE_EXPENSES"
+          - name: "HEALTHCARE_COVERAGE"
+          - name: "INCOME"
+          - name: "ZIP3"
+      - name: "encounters"
+        columns:
+          - name: "ID"
+            data_tests:
+              - not_null
+              - unique
+          - name: "START"
+          - name: "STOP"
+          - name: "PATIENT"
+          - name: "ORGANIZATION"
+          - name: "PROVIDER"
+          - name: "PAYER"
+          - name: "ENCOUNTERCLASS"
+          - name: "CODE"
+          - name: "DESCRIPTION"
+          - name: "BASE_ENCOUNTER_COST"
+          - name: "TOTAL_CLAIM_COST"
+          - name: "PAYER_COVERAGE"
+          - name: "REASONCODE"
+          - name: "REASONDESCRIPTION"
+      - name: "conditions"
+      - name: "medications"
+      - name: "procedures"
+      - name: "observations"
+    
