@@ -1,0 +1,12 @@
+version: 2
+models:
+  - name: "patients"
+    description: "One row per patient, built from raw.patients. Column names are cleaned (id -> patient_id, marital -> marital_status), unknown ZIP3 ('000') is set to NULL, and geo_known flags whether the patient's location is known. Direct identifiers were removed upstream in the Glue job."
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "geo_known"
+        data_tests:
+          - not_null
