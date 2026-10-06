@@ -125,6 +125,32 @@ td{padding:8px 12px;border-top:1px solid #f0dcc0}
 footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:.85rem;border-top:2px solid rgba(21,22,17,.1);max-width:1100px;margin:0 auto}
 footer b{color:var(--onyx)}
 
+/* dbt sessions — soft sage palette, low contrast, easy to spot */
+.session.dbt{--sage:#C9D9C6;--sage-deep:#8FA98B;--sage-pale:#F2F6F0;--sage-ink:#2F3B31;--rose:#E3CFCB;--rose-ink:#6A4742}
+.session.dbt .session-head{background:linear-gradient(120deg,var(--sage),#E6EEE3)}
+.session.dbt .session-head h2{color:var(--sage-ink)}
+.session.dbt .session-head .date{color:var(--sage-ink);background:rgba(255,255,255,.6)}
+.session.dbt .topic{border-left-color:var(--sage);background:#FCFDFB}
+.session.dbt .topic.error{border-left-color:var(--rose)}
+.session.dbt .topic p,.session.dbt .topic h3{color:var(--sage-ink)}
+.session.dbt code{background:rgba(143,169,139,.18);color:var(--sage-ink)}
+.session.dbt .tag.decision{background:var(--sage);color:var(--sage-ink)}
+.session.dbt .tag.concept{background:#E6EEE3;color:#4A5C4C}
+.session.dbt .tag.error{background:var(--rose);color:var(--rose-ink)}
+.session.dbt .topic .why{background:var(--sage-pale);color:var(--sage-ink)}
+.session.dbt .topic .why b{color:var(--sage-ink)}
+.session.dbt th{background:#DDE8DA;color:var(--sage-ink)}
+.session.dbt td{border-top:1px solid #E4ECE1;color:var(--sage-ink)}
+.session.dbt .code{background:var(--sage-pale);border:1px solid #DDE8DA}
+.session.dbt .code code{background:none;color:#34443A}
+.session.dbt .copy{color:#4A5C4C;background:#E6EEE3;border-color:#CFDDCB}
+.session.dbt .copy:hover{background:var(--sage-deep);color:#fff}
+.session.dbt .iq{background:#E9F0E6;color:var(--sage-ink);border-left:5px solid var(--sage-deep)}
+.session.dbt .iq .iq-label{color:#5E7A5B}
+.session.dbt .iq p.a{color:#3E4D40}
+nav.toc a.dbt .dot{background:#8FA98B}
+nav.toc a.dbt{color:#5E7A5B}
+
 @media(max-width:820px){
   .wrap{grid-template-columns:1fr;gap:20px}
   nav.toc{position:static}
@@ -138,11 +164,11 @@ footer b{color:var(--onyx)}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 8</span>
+    <span class="meta-pill">Sessions: 9</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in progress</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in dbt: patients built + tested, encounters next</span>
   </div>
 </header>
 
@@ -382,6 +408,22 @@ footer b{color:var(--onyx)}
     <a href="#label-exclusions"><span class="dot"></span>Exclusions + funnel</a>
     <a href="#core-patients-design"><span class="dot"></span>CORE conventions</a>
     <a href="#session8-open"><span class="dot"></span>Open items</a>
+    <p class="lbl">dbt</p>
+    <a class="dbt" href="#session9"><span class="dot"></span>Session 9 — CORE in dbt</a>
+    <a class="dbt" href="#dbt-setup"><span class="dot"></span>Setup + profile</a>
+    <a class="dbt" href="#dbt-file-map"><span class="dot"></span>Which file does what</a>
+    <a class="dbt" href="#dbt-model-is-select"><span class="dot"></span>A model is a SELECT</a>
+    <a class="dbt" href="#dbt-transient"><span class="dot"></span>Transient tables</a>
+    <a class="dbt" href="#dbt-source-vs-ref"><span class="dot"></span>source() vs ref()</a>
+    <a class="dbt" href="#yaml-dash-rule"><span class="dot"></span>YAML dash rule</a>
+    <a class="dbt" href="#yaml-errors"><span class="dot"></span>YAML errors</a>
+    <a class="dbt" href="#dbt-core-patients"><span class="dot"></span>core.patients model</a>
+    <a class="dbt" href="#dbt-model-errors"><span class="dot"></span>Model + check errors</a>
+    <a class="dbt" href="#dbt-tests"><span class="dot"></span>Tests (PASS=5)</a>
+    <a class="dbt" href="#dbt-commands"><span class="dot"></span>dbt commands</a>
+    <a class="dbt" href="#dbt-terminal-errors"><span class="dot"></span>Terminal errors</a>
+    <a class="dbt" href="#glue-gcp-equivalent"><span class="dot"></span>Glue in GCP</a>
+    <a class="dbt" href="#session9-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -2444,7 +2486,7 @@ git log --oneline -1      # want: HEAD -> master, origin/master on the same line
           <tr><td><code>01_setup.sql</code></td><td>Account, integrations, stage, user defaults</td></tr>
           <tr><td><code>02_load_raw.sql</code></td><td>Load the six RAW tables</td></tr>
           <tr><td><code>03_profile_raw.sql</code></td><td>Explore RAW before designing CORE</td></tr>
-          <tr><td><code>04_core.sql</code></td><td>Build CORE (started)</td></tr>
+          <tr><td><code>04_core.sql</code></td><td>Not created — CORE is built in dbt instead (<a href="#dbt-why">Session 9</a>)</td></tr>
         </table>
       </div>
 
@@ -2569,7 +2611,7 @@ FROM carepulse_db.raw.patients;</code></pre></div>
           <tr><td><code>NULLIF(zip3,'000')</code> + <code>geo_known</code></td><td>"Unknown" becomes a real NULL, while the fact that it's unknown stays available as a feature</td></tr>
           <tr><td>Fully qualified <code>carepulse_db.raw.…</code></td><td>The file runs in the <code>core</code> schema</td></tr>
         </table>
-        <p style="margin-top:10px">Verification pending: expect 57,537 · 57,537 distinct · 14,618 geo unknown · 14,618 NULL zip3.</p>
+        <p style="margin-top:10px">Built and verified as a dbt model in <a href="#dbt-core-patients">Session 9</a>: 57,537 · 57,537 distinct · 14,618 geo unknown · 14,618 NULL zip3.</p>
       </div>
 
       <div class="iq">
@@ -2597,10 +2639,426 @@ FROM carepulse_db.raw.patients;</code></pre></div>
         <h3><span class="tag error">Open items</span> Carried forward</h3>
         <table>
           <tr><th>Item</th><th>Next action</th></tr>
-          <tr><td><code>core.patients</code></td><td>Run + verify (57,537 / 14,618)</td></tr>
+          <tr><td><code>core.patients</code></td><td><b>Done in <a href="#dbt-core-patients">Session 9</a></b> as a dbt model — 57,537 / 14,618 verified, 4 tests</td></tr>
           <tr><td><code>core.encounters</code></td><td><code>admitted_at</code>/<code>discharged_at</code>, length of stay in minutes / 60.0</td></tr>
           <tr><td><code>core.inpatient_episodes</code></td><td>Episode merge + exclusion flags (incl. separate data-issue flag) + 30-day label → 51,925 eligible</td></tr>
           <tr><td>Branch</td><td>Merge <code>core-layer</code> into <code>master</code> once CORE is built and verified</td></tr>
+          <tr><td>File-parallelism experiment</td><td><code>repartition(8)</code> → re-measure Glue and COPY</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session9">
+      <div class="session-head">
+        <h2>Session 9 — CORE in dbt: Setup, Sources, and the First Model</h2>
+        <span class="date">Sep 29 – Oct 2, 2026</span>
+      </div>
+
+      <div class="topic decision" id="dbt-why">
+        <h3><span class="tag decision">Decision</span> Build CORE in dbt instead of a hand-run <code>04_core.sql</code></h3>
+        <p>dbt runs SQL in Snowflake from the PC. Each table is a <code>.sql</code> file holding one SELECT; dbt adds the
+        <code>CREATE</code>, works out the build order, and runs tests. The planned <code>04_core.sql</code> is replaced
+        by a dbt project in <code>carepulse_dbt/</code>.</p>
+        <table>
+          <tr><th>dbt gives</th><th>Replaces</th></tr>
+          <tr><td>Build order from <code>ref()</code></td><td>Running statements by hand in the right sequence</td></tr>
+          <tr><td>Tests in YAML and SQL</td><td>One-off check queries in Snowsight</td></tr>
+          <tr><td><code>dbt docs</code> lineage graph</td><td>Describing RAW → CORE → MART in words</td></tr>
+          <tr><td>Same code in dev and prod</td><td>Editing schema names per environment</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="dbt-setup">
+        <h3><span class="tag concept">Setup</span> Install, project, profile, connection test</h3>
+        <table>
+          <tr><th>Step</th><th>Command / file</th><th>Why</th></tr>
+          <tr><td>Install</td><td><code>C:\dev\venv-dbt</code> with dbt-core 1.12.5 + dbt-snowflake 1.12.1</td><td>The adapter is what lets dbt talk to Snowflake</td></tr>
+          <tr><td>Create project</td><td><code>dbt init carepulse_dbt --skip-profile-setup</code></td><td>Standard folders; the flag skips the interactive connection prompt so the profile is written by hand</td></tr>
+          <tr><td>Profile</td><td><code>C:\Users\Preetham\.dbt\profiles.yml</code></td><td>Connection details live <b>outside the repo</b>, like the <code>.p8</code> key</td></tr>
+          <tr><td>Test</td><td><code>dbt debug</code> → <code>All checks passed!</code></td><td>Checks profile, project file and a real login — builds nothing</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>carepulse_dbt:                # must match "profile:" in dbt_project.yml
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: ILBLMBM-HNC80452
+      user: VXS58020
+      private_key_path: C:/Users/Preetham/.snowflake/carepulse_key.p8
+      role: SYSADMIN
+      warehouse: CAREPULSE_WH
+      database: CAREPULSE_DB
+      schema: CORE
+      threads: 4</code></pre></div>
+        <div class="why"><b>Notes:</b> forward slashes in the key path (backslashes can be misread in YAML) ·
+        <code>authenticator: None</code> in <code>dbt debug</code> is normal with key-pair login ·
+        <code>threads: 4</code> = up to four models/tests at once.</div>
+      </div>
+
+      <div class="topic" id="dbt-cleanup">
+        <h3><span class="tag concept">Setup</span> Cleaning the scaffold</h3>
+        <table>
+          <tr><th>Change</th><th>Why</th></tr>
+          <tr><td>Deleted <code>models\example\</code></td><td>Otherwise the first run builds demo tables inside CORE</td></tr>
+          <tr><td><code>dbt_project.yml</code>: <code>models: carepulse_dbt: +materialized: table</code></td><td>Default is a view (re-runs on every read). CORE is read repeatedly → compute once. <code>+</code> = applies to everything under that folder.</td></tr>
+          <tr><td><code>logs/</code> added to the root <code>.gitignore</code></td><td>dbt writes <code>logs/dbt.log</code> in whatever folder it is run from</td></tr>
+        </table>
+        <div class="why"><b>Warnings that are fine:</b> "unused configuration paths: models.carepulse_dbt" (no model yet —
+        gone after the first model) · "No nodes selected" (nothing to list) · "Unable to do partial parsing" (first run).</div>
+      </div>
+
+      <div class="topic" id="dbt-file-map">
+        <h3><span class="tag concept">Concept</span> Which file does what</h3>
+        <table>
+          <tr><th>File</th><th>Where</th><th>Describes</th></tr>
+          <tr><td><code>profiles.yml</code></td><td><code>~\.dbt\</code> (not in git)</td><td>How to connect: account, user, key, role, warehouse, database, schema</td></tr>
+          <tr><td><code>dbt_project.yml</code></td><td><code>carepulse_dbt\</code></td><td>The project: name, profile, folders, default materialization. <code>version: '1.0.0'</code> = <i>your</i> project version.</td></tr>
+          <tr><td><code>_sources.yml</code></td><td><code>models\core\</code></td><td>Tables dbt <b>reads but doesn't build</b> (RAW). Top key <code>sources:</code></td></tr>
+          <tr><td><code>_models.yml</code></td><td><code>models\core\</code></td><td>Descriptions + tests for tables dbt <b>builds</b>. Top key <code>models:</code></td></tr>
+          <tr><td><code>patients.sql</code></td><td><code>models\core\</code></td><td>A model: one SELECT. File name = table name.</td></tr>
+          <tr><td><code>patients_geo_consistency.sql</code></td><td><code>tests\</code></td><td>A singular test: SQL returning rule-breaking rows</td></tr>
+          <tr><td><code>target\</code>, <code>logs\</code></td><td>generated, git-ignored</td><td>Compiled SQL and logs — read, never edit</td></tr>
+        </table>
+        <div class="why">In property files (<code>_sources.yml</code>, <code>_models.yml</code>) the first line is
+        <code>version: 2</code> — the file-format version, a bare number, not the project's <code>'1.0.0'</code>.</div>
+      </div>
+
+      <div class="topic" id="dbt-model-is-select">
+        <h3><span class="tag concept">Doubt answered</span> "We only write a SELECT — where does the table come from?"</h3>
+        <p>dbt wraps the SELECT before sending it. The model file holds only the query; <code>dbt run</code> sends:</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>create or replace transient table CAREPULSE_DB.CORE.patients
+as (
+    SELECT id AS patient_id, ...
+    FROM carepulse_db.raw.patients
+);</code></pre></div>
+        <table>
+          <tr><th>Part</th><th>Comes from</th></tr>
+          <tr><td><code>create or replace table</code></td><td><code>+materialized: table</code> in <code>dbt_project.yml</code></td></tr>
+          <tr><td><code>CAREPULSE_DB</code> / <code>CORE</code></td><td><code>database:</code> / <code>schema:</code> in <code>profiles.yml</code></td></tr>
+          <tr><td><code>patients</code></td><td>The file name <code>patients.sql</code></td></tr>
+          <tr><td>The SELECT</td><td>The model file</td></tr>
+          <tr><td><code>carepulse_db.raw.patients</code></td><td><code>{{ source('raw','patients') }}</code> looked up in <code>_sources.yml</code></td></tr>
+        </table>
+        <div class="why"><b>Every run rebuilds the table from scratch.</b> Change the SELECT or load new RAW data → run →
+        the table reflects it. The exact statement sent is saved in
+        <code>target\run\carepulse_dbt\models\core\patients.sql</code>.<br>
+        <b>Materializations:</b> <code>view</code> (saved query, no data) · <code>table</code> (full rebuild) ·
+        <code>incremental</code> (only new rows) — one config word, same SELECT.</div>
+      </div>
+
+      <div class="topic" id="dbt-transient">
+        <h3><span class="tag concept">Doubt answered</span> Transient table — can it be seen in Snowflake?</h3>
+        <p>Yes. It is a real table that stays until dropped: Snowsight → Data → Databases → CAREPULSE_DB → CORE → Tables,
+        or <code>SHOW TABLES IN SCHEMA carepulse_db.core;</code> (the <code>kind</code> column says TRANSIENT).</p>
+        <table>
+          <tr><th>Kind</th><th>Lives</th><th>Time Travel</th><th>Fail-safe</th></tr>
+          <tr><td>Permanent</td><td>until dropped</td><td>up to 90 days (1 on Standard)</td><td>7 days</td></tr>
+          <tr><td><b>Transient</b></td><td>until dropped</td><td>0 or 1 day</td><td>none</td></tr>
+          <tr><td>Temporary</td><td>this session only</td><td>0 or 1 day</td><td>none</td></tr>
+        </table>
+        <div class="why"><b>Why dbt defaults to transient:</b> the table can be rebuilt from RAW in seconds, so paying for
+        7 days of Fail-safe storage is wasted. RAW tables are permanent (loaded source data keeps the protection).
+        Override with <code>+transient: false</code>.</div>
+      </div>
+
+      <div class="topic" id="dbt-source-vs-ref">
+        <h3><span class="tag concept">Doubt answered</span> <code>source()</code> vs <code>ref()</code></h3>
+        <table>
+          <tr><th></th><th><code>source()</code></th><th><code>ref()</code></th></tr>
+          <tr><td>Points to</td><td>A table dbt does <b>not</b> build</td><td>A table dbt <b>does</b> build (a model)</td></tr>
+          <tr><td>Created by</td><td>Glue → S3 → <code>COPY INTO</code></td><td>dbt, from a file in <code>models/</code></td></tr>
+          <tr><td>Declared in</td><td><code>_sources.yml</code></td><td>Nowhere — the <code>.sql</code> file is enough</td></tr>
+          <tr><td>Syntax</td><td><code>{{ source('raw', 'patients') }}</code></td><td><code>{{ ref('patients') }}</code></td></tr>
+          <tr><td>Becomes</td><td><code>carepulse_db.raw.patients</code></td><td><code>CAREPULSE_DB.CORE.patients</code></td></tr>
+        </table>
+        <div class="why"><b>Why not hard-code names:</b> (1) <code>ref()</code> is how dbt learns build order — tests waited
+        for the model without being told; (2) resolves per environment; (3) feeds the lineage graph; (4) one place to
+        change. <b>Rule:</b> first model on loaded data uses <code>source()</code>; everything after uses
+        <code>ref()</code>; never hard-code a table name in a model.</div>
+      </div>
+
+      <div class="topic" id="yaml-dash-rule">
+        <h3><span class="tag concept">Doubt answered</span> YAML: when to use <code>-</code> and when not</h3>
+        <table>
+          <tr><th>You write</th><th>Means</th><th>Ask</th></tr>
+          <tr><td><code>- something</code></td><td>One item in a <b>list</b></td><td>Could there be several of these?</td></tr>
+          <tr><td><code>key: value</code></td><td>A <b>property</b> of one thing</td><td>Is this a detail of the thing above?</td></tr>
+        </table>
+        <p>In Python terms: a dash is a list element, a key without a dash is a dict entry.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>{"version": 2,
+ "sources": [                       # list of sources
+   {"name": "raw",                  # "- name: raw" starts ONE source
+    "database": "carepulse_db",     #   its properties: no dash
+    "schema": "raw",
+    "tables": [                     # list of tables
+      {"name": "patients",          # "- name: patients" starts ONE table
+       "columns": [                 # list of columns
+         {"name": "ID",
+          "data_tests": ["not_null", "unique"]}]}]}]}</code></pre></div>
+        <div class="why"><b>Rules:</b> each level adds 2 spaces (0 → 2 → 4 → 6…) · spaces, never tabs · a dash needs a
+        space after it (<code>-name</code> is just text) · the first key after a dash sets the indent for that item's
+        other keys, so <code>columns:</code> / <code>data_tests:</code> / <code>description:</code> line up with
+        <code>name</code>, not with the <code>-</code> · quotes are optional for plain names.<br>
+        <b>VS Code:</b> View → Render Whitespace · status bar "Ln, Col" · Tab / Shift+Tab move a selection ·
+        Alt+Shift+↓ puts a cursor on several lines.</div>
+      </div>
+
+      <div class="topic error" id="yaml-errors">
+        <h3><span class="tag error">Errors</span> YAML mistakes made while writing <code>_sources.yml</code> and <code>_models.yml</code></h3>
+        <table>
+          <tr><th>What was written</th><th>What happened</th><th>Fix</th></tr>
+          <tr><td><code>version: '1.0.0'</code> / <code>'2'</code></td><td>Copied from <code>dbt_project.yml</code>; quoted = text</td><td><code>version: 2</code></td></tr>
+          <tr><td><code>tables:</code> at column 0</td><td>"Unexpected top-level key tables" → 0 sources found</td><td>Indent to 4 spaces, under the source</td></tr>
+          <tr><td>Six <code>- name:</code> at 2 spaces, one table each</td><td>Six sources; default schema = source name → <code>CAREPULSE_DB.ENCOUNTERS.ENCOUNTERS</code></td><td>One source, six tables under its <code>tables:</code></td></tr>
+          <tr><td><code>-columns:</code></td><td>Read as a key named "-columns"; silently ignored</td><td><code>columns:</code> — a property, no dash</td></tr>
+          <tr><td>Columns <code>patient_id</code>, <code>first_name</code>, <code>last_name</code> on a RAW table</td><td>Don't exist in RAW; names were dropped as PII in Glue</td><td>Use real names (<code>DESC TABLE</code>); CORE names belong in <code>_models.yml</code></td></tr>
+          <tr><td><code>data_tests:</code> level with the <code>-</code></td><td>YAML parse error</td><td>Line up with <code>name</code> (2 deeper than the dash)</td></tr>
+          <tr><td><code>_models.yml</code> shaped like sources: <code>name: "raw"</code> + <code>tables:</code></td><td>dbt looks for a model called <code>raw</code>; tests attach to nothing</td><td>Model name = file name (<code>patients</code>); no <code>tables:</code> level</td></tr>
+          <tr><td><code>"ID"</code> in <code>_models.yml</code></td><td>CORE has no <code>ID</code></td><td><code>patient_id</code></td></tr>
+          <tr><td><code>description:</code> at 8 spaces</td><td>Nested under <code>name</code> → parse error</td><td>4 spaces, level with <code>name</code> and <code>columns</code></td></tr>
+        </table>
+        <div class="why"><b>Heads-up:</b> a test on <code>START</code> or <code>STOP</code> needs <code>quote: true</code> on
+        that column — dbt doesn't quote column names, and they are reserved words.</div>
+      </div>
+
+      <div class="topic decision" id="dbt-sources-verified">
+        <h3><span class="tag decision">Verified</span> Six RAW sources declared — <code>PASS=4</code></h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>version: 2
+sources:
+  - name: "raw"
+    database: "carepulse_db"
+    schema: "raw"
+    tables:
+      - name: "patients"
+        columns:
+          - name: "ID"
+            data_tests:
+              - not_null
+              - unique
+      - name: "encounters"
+        columns:
+          - name: "ID"
+            data_tests:
+              - not_null
+              - unique
+      - name: "conditions"
+      - name: "medications"
+      - name: "procedures"
+      - name: "observations"</code></pre></div>
+        <p><code>dbt ls --resource-type source</code> → 6 lines <code>source:carepulse_dbt.raw.*</code>.
+        <code>dbt test --select source:raw</code> → <b>PASS=4</b> in 9s (all four ran in parallel; ~7.5s each is mostly
+        connection + warehouse resume).</p>
+        <div class="why"><code>dbt ls</code> only parses files — it does not connect, so it can't prove the tables exist.
+        Tests do connect. <b>unique</b> catches duplicate loads (<code>COPY … FORCE</code> without truncate);
+        <b>not_null</b> catches broken keys that would vanish from joins. Only the columns being tested or described
+        need listing.</div>
+      </div>
+
+      <div class="topic" id="dbt-pass-meaning">
+        <h3><span class="tag concept">Doubt answered</span> What <code>PASS=4</code> means</h3>
+        <table>
+          <tr><th>Counter</th><th>Meaning</th></tr>
+          <tr><td>PASS</td><td>Ran and found 0 bad rows (for a model: built OK)</td></tr>
+          <tr><td>WARN</td><td>Bad rows found, but the test is set to <code>severity: warn</code></td></tr>
+          <tr><td>ERROR</td><td>A test found bad rows (its line says FAIL), or the SQL couldn't run</td></tr>
+          <tr><td>SKIP</td><td>Not run because something it depends on failed</td></tr>
+          <tr><td>TOTAL</td><td>Everything selected</td></tr>
+        </table>
+        <div class="why">A dbt test is a SELECT that returns the rows that <b>break</b> the rule. Zero rows = PASS.</div>
+      </div>
+
+      <div class="topic decision" id="dbt-core-patients">
+        <h3><span class="tag decision">Verified</span> First model — <code>core.patients</code> (written by me)</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT
+id AS patient_id,
+birthdate AS birth_date,
+deathdate AS death_date,
+gender,
+race,
+ethnicity,
+marital AS marital_status,
+state,
+county,
+fips,
+NULLIF(zip3, '000') AS zip3,
+IFF(zip3 = '000', FALSE, TRUE) AS geo_known,
+healthcare_expenses,
+healthcare_coverage,
+income
+FROM {{ source('raw', 'patients') }}</code></pre></div>
+        <p><code>dbt run --select patients</code> → <code>OK created sql table model CORE.patients … SUCCESS 57537</code>.</p>
+        <table>
+          <tr><th>Check (Snowsight)</th><th>Expected</th><th>Got</th></tr>
+          <tr><td><code>COUNT(*)</code></td><td>57,537</td><td>57,537</td></tr>
+          <tr><td><code>COUNT(DISTINCT patient_id)</code></td><td>57,537</td><td>57,537</td></tr>
+          <tr><td><code>COUNT_IF(geo_known = FALSE)</code></td><td>14,618</td><td>14,618</td></tr>
+          <tr><td><code>COUNT_IF(zip3 IS NULL)</code></td><td>14,618</td><td>14,618</td></tr>
+        </table>
+        <div class="why"><b>Why explicit columns, not <code>SELECT *</code>:</b> the model is a contract — readers see
+        exactly what CORE exposes, and a new RAW column doesn't flow downstream silently.
+        <b>Why <code>'000'</code> → NULL:</b> it looks like a value, so <code>GROUP BY zip3</code> would put 14,618
+        patients in one fake area; <code>geo_known</code> keeps "unknown" as an explicit flag.
+        <code>zip3 &lt;&gt; '000'</code> is a shorter equivalent of the <code>IFF</code>.</div>
+      </div>
+
+      <div class="topic error" id="dbt-model-errors">
+        <h3><span class="tag error">Errors</span> Mistakes while writing and checking the model</h3>
+        <table>
+          <tr><th>What was written</th><th>What happened</th><th>Lesson</th></tr>
+          <tr><td><code>patient_id AS id</code></td><td><code>invalid identifier 'PATIENT_ID'</code></td><td><code>existing AS new</code> — read AS as "becomes"</td></tr>
+          <tr><td><code>country</code></td><td>Would be the next error; Snowflake stops at the first</td><td>RAW column is <code>county</code></td></tr>
+          <tr><td>Check query put inside <code>patients.sql</code> with a <code>WHERE</code></td><td>Table rebuilt with 0 rows → check returned zeros</td><td>The model <b>builds</b>; a check <b>reads</b> — separate query, in Snowsight or a dbt test</td></tr>
+          <tr><td><code>DISTINCT(ID)</code></td><td>DISTINCT applies to the whole row</td><td><code>COUNT(DISTINCT id)</code></td></tr>
+          <tr><td>Old code left as <code>--</code> comments with <code>{{ … }}</code></td><td>dbt still processes Jinja inside SQL comments</td><td>Delete old code — git keeps history</td></tr>
+          <tr><td><code>COUNT(DISTINCT ID)</code> against CORE</td><td>CORE has no <code>ID</code></td><td>Query output columns the way a consumer would</td></tr>
+          <tr><td><code>IFF(zip3 = '000', …)</code> re-derived in the check</td><td>Would return 0: in CORE zip3 is NULL, and <code>NULL = '000'</code> is NULL → IFF takes the else branch</td><td>Test the column that was built: <code>geo_known</code></td></tr>
+          <tr><td><code>geo_known IS FALSE</code></td><td><code>syntax error … unexpected 'IS'</code></td><td>Use <code>geo_known = FALSE</code> or <code>NOT geo_known</code></td></tr>
+          <tr><td>Empty <code>SELECT</code> before <code>FROM</code> in the singular test</td><td>Syntax error at FROM</td><td>List the columns you'd want to see on failure</td></tr>
+        </table>
+        <div class="why"><b>Reading a dbt error:</b> "error line 9" is a line in the <b>compiled</b> SQL (your SELECT inside
+        dbt's CREATE wrapper), not your file. Open the path the error prints —
+        <code>target\run\…\patients.sql</code> — to see exactly what was sent.</div>
+      </div>
+
+      <div class="topic decision" id="dbt-tests">
+        <h3><span class="tag decision">Verified</span> Tests on <code>core.patients</code> — <code>PASS=5</code></h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code># models/core/_models.yml
+version: 2
+models:
+  - name: "patients"
+    description: "One row per patient, built from raw.patients. ..."
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "geo_known"
+        data_tests:
+          - not_null
+
+-- tests/patients_geo_consistency.sql   (no trailing semicolon)
+SELECT patient_id, zip3, geo_known
+FROM {{ ref('patients') }}
+WHERE (zip3 IS NULL AND geo_known = TRUE)
+OR (zip3 IS NOT NULL AND geo_known = FALSE)</code></pre></div>
+        <table>
+          <tr><th></th><th>Generic test</th><th>Singular test</th></tr>
+          <tr><td>Mine</td><td><code>unique</code>, <code>not_null</code></td><td><code>patients_geo_consistency</code></td></tr>
+          <tr><td>Written as</td><td>One line in YAML</td><td>Its own <code>.sql</code> file in <code>tests\</code></td></tr>
+          <tr><td>SQL comes from</td><td>A template built into dbt</td><td>Me</td></tr>
+          <tr><td>Use for</td><td>Any column of any model</td><td>One business rule</td></tr>
+        </table>
+        <p><code>dbt build --select patients</code> → model first (alone), then four tests in parallel →
+        <b>PASS=5</b>. Had the model failed, the tests would show SKIP.</p>
+        <div class="why"><b>Generated names</b> = test + model + column (<code>unique_patients_patient_id</code>). They have
+        no file in the project; the SQL dbt wrote is in <code>target\compiled\carepulse_dbt\models\core\_models.yml\</code>
+        — a <code>GROUP BY … HAVING COUNT(*) &gt; 1</code>.<br>
+        <b>A good description answers:</b> what is one row · where it comes from · what was changed or decided.</div>
+      </div>
+
+      <div class="topic error" id="dbt-found-line">
+        <h3><span class="tag error">Gotcha</span> <code>PASS=2</code> instead of 5 — the YAML tab was never saved</h3>
+        <p>The first <code>dbt build</code> ran the model and the singular test only. The top of the log said
+        <code>Found 5 data tests</code> (4 source + 1 singular) where 8 were expected, and
+        <code>Get-ChildItem models\core</code> showed no <code>_models.yml</code>.</p>
+        <div class="why"><b>Habits:</b> read the <b>"Found N …"</b> line on every run — it shows what dbt sees before any SQL
+        runs. Create files with <code>code &lt;path&gt;</code> from the terminal so Ctrl+S saves to the right place. A
+        white dot on a VS Code tab = unsaved.</div>
+      </div>
+
+      <div class="topic" id="dbt-commands">
+        <h3><span class="tag concept">Reference</span> dbt commands used</h3>
+        <table>
+          <tr><th>Command</th><th>Does</th></tr>
+          <tr><td><code>dbt --version</code></td><td>Core and adapter versions</td></tr>
+          <tr><td><code>dbt init carepulse_dbt --skip-profile-setup</code></td><td>Create the project folders</td></tr>
+          <tr><td><code>dbt debug</code></td><td>Check profile, project file, connection</td></tr>
+          <tr><td><code>dbt ls --resource-type source</code></td><td>List sources (parse only, no connection)</td></tr>
+          <tr><td><code>dbt ls --select patients</code></td><td>List the model and the tests attached to it</td></tr>
+          <tr><td><code>dbt run --select patients</code></td><td>Build the model only</td></tr>
+          <tr><td><code>dbt test --select source:raw</code></td><td>Run tests only</td></tr>
+          <tr><td><code>dbt build --select patients</code></td><td>Model, then its tests, in dependency order</td></tr>
+          <tr><td><code>Get-ChildItem -Recurse target\compiled -Filter *.sql</code></td><td>Find the SQL dbt generated</td></tr>
+        </table>
+        <div class="why"><b>"Same command, different SQL each time?"</b> <code>--select patients</code> is a description,
+        not a fixed list. dbt re-reads every project file on each run; adding <code>_models.yml</code> attached three
+        more tests, so the same command went from PASS=2 to PASS=5.</div>
+      </div>
+
+      <div class="topic error" id="dbt-terminal-errors">
+        <h3><span class="tag error">Errors</span> Terminal mistakes</h3>
+        <table>
+          <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+          <tr><td><code>'dbt' is not recognized</code></td><td>New terminal — venv not active (no <code>(venv-dbt)</code> in the prompt)</td><td><code>C:\dev\venv-dbt\Scripts\Activate.ps1</code></td></tr>
+          <tr><td>Activate path glued to the end of a <code>dbt</code> command</td><td>No Enter between two commands</td><td>Run each command on its own line</td></tr>
+          <tr><td><code>Unexpected token 'PS'</code></td><td>Pasted an example prompt line</td><td>Harmless — only paste commands</td></tr>
+          <tr><td><code>No dbt_project.yml found at … C:\dev\carepulse</code></td><td>Ran dbt from the repo root</td><td><code>cd carepulse_dbt</code></td></tr>
+          <tr><td><code>logs/</code> appeared in the repo root</td><td>dbt logs where it is run</td><td>Delete it; <code>logs/</code> in <code>.gitignore</code></td></tr>
+        </table>
+        <div class="why"><b>Every new terminal:</b> activate, then cd. <code>git</code> runs from
+        <code>C:\dev\carepulse</code>; <code>dbt</code> runs from <code>C:\dev\carepulse\carepulse_dbt</code>.</div>
+      </div>
+
+      <div class="topic" id="glue-gcp-equivalent">
+        <h3><span class="tag concept">Doubt answered</span> Glue's equivalent in GCP</h3>
+        <table>
+          <tr><th>Glue piece</th><th>GCP</th></tr>
+          <tr><td>ETL job (PySpark) — <code>transform_table.py</code></td><td><b>Dataproc Serverless for Spark</b></td></tr>
+          <tr><td>Long-running Spark cluster</td><td>Dataproc (cluster mode)</td></tr>
+          <tr><td>"Managed ETL" in general</td><td>Dataflow — Apache Beam, not Spark; batch + streaming in one codebase</td></tr>
+          <tr><td>Data Catalog / Crawlers</td><td>Dataplex Universal Catalog / Dataplex discovery</td></tr>
+          <tr><td>Glue Studio (visual)</td><td>Cloud Data Fusion</td></tr>
+          <tr><td>Workflows / Triggers</td><td>Cloud Composer (Airflow)</td></tr>
+        </table>
+        <div class="why"><b>Porting the job:</b> drop <code>awsglue</code> / <code>GlueContext</code> / <code>job.commit()</code>
+        for a plain <code>SparkSession</code>, swap <code>getResolvedOptions</code> for <code>argparse</code>,
+        <code>s3://</code> → <code>gs://</code>. Schemas, FAILFAST, VALUE_NUM, PII drop and the Parquet write are plain
+        Spark and carry over. Check current GCP product names before quoting them.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What is a dbt model, and what does a materialization do?</p>
+        <p class="a">A model is a SELECT statement in a file. The materialization decides how dbt wraps it: a view, a
+        table that is fully rebuilt each run, or an incremental merge of only new rows. In my project CORE models are
+        tables because the feature and mart layers read them repeatedly. dbt builds them as transient tables since they
+        can be regenerated from RAW at any time, so Fail-safe storage would be wasted.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What's the difference between <code>source()</code> and <code>ref()</code>?</p>
+        <p class="a"><code>source()</code> points at tables dbt doesn't build — my RAW tables, loaded by COPY INTO from
+        Glue output. <code>ref()</code> points at another dbt model. <code>ref()</code> is also how dbt works out the
+        build order and the lineage graph, and it resolves to the right schema per environment, so models never
+        hard-code a table name.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you approach testing pipeline code?</p>
+        <p class="a">I separate code bugs from data bugs. For code, I keep transformations as pure functions and
+        unit-test them with pytest on a local Spark session, using small fixtures built around real edge cases, like a
+        ZIP with a leading zero. For data, I test at every boundary: schema contracts on ingest, fail-fast parsing, then
+        dbt tests for uniqueness, nulls and referential integrity, plus row-count reconciliation between layers. For
+        business logic like the readmission label, I pin known answers as regression tests, so a refactor that changes
+        the 16% rate fails the build. It runs in CI on every PR, and freshness and volume checks keep running in
+        production.</p>
+        <p class="a"><b>Honest status in CarePulse:</b> contracts (Lambda + FAILFAST), reconciliation and dbt tests are
+        in place; unit tests for <code>transform_table.py</code>, CI and monitoring are not built yet.</p>
+      </div>
+
+      <div class="topic error" id="session9-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td><code>core.encounters</code></td><td>Rename IDs, <code>"START"</code>/<code>"STOP"</code> → <code>start_ts</code>/<code>stop_ts</code>, <code>length_of_stay_hours</code> = minutes / 60.0. Expect 3,377,145 rows; encounter <code>e7e708a7…</code> = 0.25 h. Tests: unique + not_null on <code>encounter_id</code>, <code>relationships</code> to <code>patients</code>.</td></tr>
+          <tr><td><code>core.inpatient_episodes</code></td><td>Episode merge + exclusion flags + 30-day label, reading <code>ref('encounters')</code> and <code>ref('patients')</code> → 51,925 eligible, 16.0%; pin those as singular tests</td></tr>
+          <tr><td>Column descriptions</td><td>Fill in once all CORE models exist; then <code>dbt docs generate</code> for the lineage graph</td></tr>
+          <tr><td>Schema naming for later layers</td><td>dbt's default joins profile schema + custom schema (<code>CORE_FEATURE_STORE</code>) — override <code>generate_schema_name</code> before building FEATURE_STORE</td></tr>
+          <tr><td>Branch</td><td>PR <code>core-layer</code> → <code>master</code> once CORE is built and verified (commits so far: 376d13d, f9f218b, 7fa4544)</td></tr>
+          <tr><td>Testing gaps</td><td>pytest for <code>transform_table.py</code> (refactor into functions); GitHub Actions running pytest + <code>dbt build</code></td></tr>
           <tr><td>File-parallelism experiment</td><td><code>repartition(8)</code> → re-measure Glue and COPY</td></tr>
         </table>
       </div>
