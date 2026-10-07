@@ -164,11 +164,11 @@ nav.toc a.dbt{color:#5E7A5B}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 9</span>
+    <span class="meta-pill">Sessions: 10</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in dbt: patients built + tested, encounters next</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in dbt: patients + encounters built and tested · inpatient_episodes steps 1–4 of 7</span>
   </div>
 </header>
 
@@ -424,6 +424,16 @@ nav.toc a.dbt{color:#5E7A5B}
     <a class="dbt" href="#dbt-terminal-errors"><span class="dot"></span>Terminal errors</a>
     <a class="dbt" href="#glue-gcp-equivalent"><span class="dot"></span>Glue in GCP</a>
     <a class="dbt" href="#session9-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session10"><span class="dot"></span>Session 10 — encounters + episodes</a>
+    <a class="dbt" href="#dbt-core-encounters"><span class="dot"></span>core.encounters model</a>
+    <a class="dbt" href="#dbt-relationships-test"><span class="dot"></span>relationships test</a>
+    <a class="dbt" href="#cte-explained"><span class="dot"></span>What is a CTE</a>
+    <a class="dbt" href="#episodes-build-plan"><span class="dot"></span>Episodes: steps 1–4</a>
+    <a class="dbt" href="#window-walkthrough"><span class="dot"></span>Window function walkthrough</a>
+    <a class="dbt" href="#same-vs-new-episode"><span class="dot"></span>Same vs new episode</a>
+    <a class="dbt" href="#where-vs-having"><span class="dot"></span>WHERE vs HAVING</a>
+    <a class="dbt" href="#episodes-errors"><span class="dot"></span>Episode model errors</a>
+    <a class="dbt" href="#session10-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -3053,13 +3063,324 @@ OR (zip3 IS NOT NULL AND geo_known = FALSE)</code></pre></div>
         <h3><span class="tag error">Open items</span> Carried forward</h3>
         <table>
           <tr><th>Item</th><th>Next action</th></tr>
-          <tr><td><code>core.encounters</code></td><td>Rename IDs, <code>"START"</code>/<code>"STOP"</code> → <code>start_ts</code>/<code>stop_ts</code>, <code>length_of_stay_hours</code> = minutes / 60.0. Expect 3,377,145 rows; encounter <code>e7e708a7…</code> = 0.25 h. Tests: unique + not_null on <code>encounter_id</code>, <code>relationships</code> to <code>patients</code>.</td></tr>
+          <tr><td><code>core.encounters</code></td><td><b>Done in <a href="#dbt-core-encounters">Session 10</a></b> — 3,377,145 rows, 5 tests incl. <code>relationships</code></td></tr>
           <tr><td><code>core.inpatient_episodes</code></td><td>Episode merge + exclusion flags + 30-day label, reading <code>ref('encounters')</code> and <code>ref('patients')</code> → 51,925 eligible, 16.0%; pin those as singular tests</td></tr>
           <tr><td>Column descriptions</td><td>Fill in once all CORE models exist; then <code>dbt docs generate</code> for the lineage graph</td></tr>
           <tr><td>Schema naming for later layers</td><td>dbt's default joins profile schema + custom schema (<code>CORE_FEATURE_STORE</code>) — override <code>generate_schema_name</code> before building FEATURE_STORE</td></tr>
           <tr><td>Branch</td><td>PR <code>core-layer</code> → <code>master</code> once CORE is built and verified (commits so far: 376d13d, f9f218b, 7fa4544)</td></tr>
           <tr><td>Testing gaps</td><td>pytest for <code>transform_table.py</code> (refactor into functions); GitHub Actions running pytest + <code>dbt build</code></td></tr>
           <tr><td>File-parallelism experiment</td><td><code>repartition(8)</code> → re-measure Glue and COPY</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session10">
+      <div class="session-head">
+        <h2>Session 10 — core.encounters Done; inpatient_episodes Steps 1–4</h2>
+        <span class="date">Oct 5 – 6, 2026</span>
+      </div>
+
+      <div class="topic decision" id="dbt-core-encounters">
+        <h3><span class="tag decision">Verified</span> Second model — <code>core.encounters</code> (written by me)</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT
+id as encounter_id,
+patient as patient_id,
+"START" as start_ts,
+"STOP" as stop_ts,
+encounterclass as encounter_class,
+organization as organization_id,
+provider as provider_id,
+payer as payer_id,
+code,
+description,
+base_encounter_cost,
+total_claim_cost,
+payer_coverage,
+reasoncode as reason_code,
+reasondescription as reason_description,
+DATEDIFF(minutes,"START", "STOP")/60.0 as length_of_stay_hours
+FROM {{ source('raw', 'encounters') }}</code></pre></div>
+        <table>
+          <tr><th>Check (Snowsight)</th><th>Expected</th><th>Got</th></tr>
+          <tr><td><code>COUNT(*)</code></td><td>3,377,145</td><td>3,377,145</td></tr>
+          <tr><td><code>COUNT(DISTINCT encounter_id)</code></td><td>3,377,145</td><td>3,377,145</td></tr>
+          <tr><td><code>COUNT_IF(length_of_stay_hours &lt; 0)</code></td><td>unknown</td><td><b>0</b></td></tr>
+          <tr><td>Encounter <code>e7e708a7…</code> (15:27:18 → 15:42:18)</td><td>0.25</td><td>0.250000</td></tr>
+        </table>
+        <div class="why"><b>Why quotes on <code>"START"</code>/<code>"STOP"</code>:</b> reserved words; quoted names are
+        case-sensitive, so uppercase. Renamed to <code>start_ts</code>/<code>stop_ts</code> so nothing downstream needs
+        quotes. <b>Why minutes / 60.0:</b> <code>DATEDIFF('hour')</code> counts hour boundaries crossed, not elapsed
+        time. <b>Finding:</b> 0 negative stays — every encounter ends at or after it starts.</div>
+      </div>
+
+      <div class="topic error" id="dbt-encounters-errors">
+        <h3><span class="tag error">Errors</span> Mistakes while building <code>core.encounters</code></h3>
+        <table>
+          <tr><th>What happened</th><th>Cause</th><th>Fix / lesson</th></tr>
+          <tr><td><code>invalid identifier 'ID'</code></td><td>The SELECT was reading a table without an <code>ID</code> column</td><td>Check the <code>FROM</code> line first — <code>source('raw','encounters')</code></td></tr>
+          <tr><td><code>invalid identifier 'BASE_ENCOUNTER'</code></td><td>Column name typo (<code>_cost</code> missing)</td><td><code>DESC TABLE carepulse_db.raw.encounters;</code> — names from the warehouse, not memory</td></tr>
+          <tr><td><code>Can not convert parameter '0' of type NUMBER into … INTERVAL DAY TO SECOND</code> in the check query</td><td>Model computed <code>"STOP" - "START"</code>: timestamp minus timestamp gives an <b>interval</b>, not a number</td><td><code>DATEDIFF(minute, start, stop) / 60.0</code>. An error in a check query can point at the model.</td></tr>
+          <tr><td>Trailing comma before <code>FROM</code> in the singular test</td><td>Snowflake accepts it</td><td>Removed — most databases reject it</td></tr>
+        </table>
+        <div class="why"><b>Correction to an earlier note:</b> in Snowflake, integer ÷ integer returns a decimal, so
+        <code>/60</code> also gave 0.25. <code>/60.0</code> is kept for portability — PostgreSQL and SQL Server would
+        return 0 for 15/60.</div>
+      </div>
+
+      <div class="topic decision" id="dbt-relationships-test">
+        <h3><span class="tag decision">Verified</span> Tests on <code>core.encounters</code> — <code>PASS=6</code>, including a foreign-key check</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>  - name: "encounters"
+    description: "One row per encounter, built from raw.encounters. ..."
+    columns:
+      - name: "encounter_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+
+-- tests/encounters_no_negative_stay.sql
+SELECT
+encounter_id,
+start_ts,
+stop_ts,
+length_of_stay_hours
+FROM {{ ref('encounters') }}
+WHERE length_of_stay_hours &lt; 0</code></pre></div>
+        <table>
+          <tr><th>Test</th><th>Proves</th></tr>
+          <tr><td><code>not_null</code> + <code>unique</code> on <code>encounter_id</code></td><td>Every encounter has one key</td></tr>
+          <tr><td><code>not_null</code> on <code>patient_id</code></td><td>Every encounter belongs to someone</td></tr>
+          <tr><td><code>relationships</code> → <code>ref('patients')</code></td><td>All 3.4M <code>patient_id</code> values exist in <code>core.patients</code></td></tr>
+          <tr><td><code>encounters_no_negative_stay</code></td><td>No encounter ends before it starts</td></tr>
+        </table>
+        <div class="why"><b>Why <code>relationships</code> matters:</b> Snowflake doesn't enforce foreign keys, so this test
+        is the only guarantee that joins between encounters and patients don't silently drop rows.
+        <b>Its YAML shape:</b> the test name ends with <code>:</code> because it has properties; <code>arguments:</code>
+        has no dash and is indented 4 past the dash of <code>- relationships:</code>.
+        <code>dbt build --select encounters</code>: 13 tests found project-wide; 1 model + 5 tests = PASS=6. With 4
+        threads and 5 tests, the fifth waited for a free slot.</div>
+      </div>
+
+      <div class="topic error" id="yaml-relationships-errors">
+        <h3><span class="tag error">Errors</span> YAML mistakes adding the second model</h3>
+        <table>
+          <tr><th>What was written</th><th>What happened</th><th>Fix</th></tr>
+          <tr><td><code>- name: "encounters"</code> at 3 spaces</td><td>Parse error — not lined up with <code>- name: "patients"</code></td><td>2 spaces; items of one list share a column</td></tr>
+          <tr><td><code>- relationships:</code> directly under <code>columns:</code></td><td>Read as a column called "relationships"</td><td>Add <code>- name: "patient_id"</code> with its own <code>data_tests:</code></td></tr>
+          <tr><td><code>- arguments:</code></td><td><code>arguments</code> is a property, not a list item</td><td>No dash</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="git-stray-edit">
+        <h3><span class="tag error">Gotcha</span> An unexpected "modified" file in <code>git status</code></h3>
+        <p><code>snowflake/02_load_raw.sql</code> showed as modified. <code>git --no-pager diff</code> showed the
+        <code>ALTER USER … DEFAULT_ROLE</code> statement pasted at the end — already saved as STEP 7 in
+        <code>01_setup.sql</code>.</p>
+        <div class="why"><b>Habits:</b> <code>git add &lt;folder&gt;</code> stages only that folder, which kept the stray
+        edit out of the commit. Read the diff before deciding. <code>git restore &lt;file&gt;</code> returns a file to its
+        last commit; it changes nothing in Snowflake.</div>
+      </div>
+
+      <div class="topic" id="cte-explained">
+        <h3><span class="tag concept">Doubt answered</span> What is a CTE?</h3>
+        <p>A <b>Common Table Expression</b> is a named, temporary result that lives only inside one query, written with
+        <code>WITH</code>. Nothing is stored. Each CTE can use the ones above it, so a long query reads top to bottom
+        like a small pipeline.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>WITH stay AS (            -- name a query
+    SELECT ... FROM ...
+),                        -- comma between CTEs
+flagged AS (
+    SELECT ... FROM stay  -- uses the one above
+)                         -- no comma after the last
+SELECT * FROM flagged     -- the final SELECT is what comes out</code></pre></div>
+        <table>
+          <tr><th></th><th>Lives</th><th>Stored?</th></tr>
+          <tr><td>CTE</td><td>one statement</td><td>No</td></tr>
+          <tr><td>Temporary table</td><td>the session</td><td>Yes, until disconnect</td></tr>
+          <tr><td>dbt model (transient table)</td><td>until dropped</td><td>Yes</td></tr>
+        </table>
+        <div class="why"><b>Rules:</b> <code>WITH</code> once · comma after every CTE except the last · every CTE needs its
+        own <code>FROM</code> · a final SELECT is required · in a dbt model only the <b>final SELECT</b> becomes the
+        table, so each time a CTE is added the final <code>SELECT * FROM …</code> must move to the newest one.</div>
+      </div>
+
+      <div class="topic decision" id="episodes-build-plan">
+        <h3><span class="tag decision">In progress</span> <code>core.inpatient_episodes</code> — built one CTE at a time</h3>
+        <p>First model built on other models: reads <code>{{ ref('encounters') }}</code>, so it uses CORE names
+        (<code>encounter_class</code>, <code>start_ts</code>) with no quotes. Each step is checked against a number
+        from the Session 8 profiling.</p>
+        <table>
+          <tr><th>Step</th><th>CTE</th><th>Does</th><th>Check</th><th>Status</th></tr>
+          <tr><td>1</td><td><code>stay</code></td><td>Keep <code>encounter_class = 'inpatient'</code></td><td>56,302 rows · 19,904 patients</td><td>✓</td></tr>
+          <tr><td>2</td><td><code>FLAGGED</code></td><td>Latest earlier discharge per stay</td><td>19,904 NULLs (one per patient)</td><td>✓</td></tr>
+          <tr><td>3</td><td><code>numbered</code></td><td><code>new_episode</code> = 1 / 0</td><td><code>SUM</code> = 52,932</td><td>✓</td></tr>
+          <tr><td>4</td><td><code>episodes</code></td><td>Running sum → <code>episode_number</code></td><td>52,932 distinct (patient, episode) · max 66</td><td>✓</td></tr>
+          <tr><td>5</td><td><code>episode_span</code></td><td><code>GROUP BY</code> to one row per episode</td><td>52,932 rows · stays sum to 56,302</td><td>next</td></tr>
+          <tr><td>6</td><td>—</td><td>Exclusion flags (join <code>ref('patients')</code>)</td><td>991 + 9 + 7</td><td></td></tr>
+          <tr><td>7</td><td>—</td><td>30-day readmission label</td><td>51,925 eligible · 16.0%</td><td></td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>WITH stay AS (
+    SELECT
+         PATIENT_ID,
+         ENCOUNTER_ID,
+         START_TS as ADMITTED_AT,
+         STOP_TS as DISCHARGED_AT
+    FROM {{ ref('encounters') }}
+    WHERE encounter_class = 'inpatient'
+),
+FLAGGED AS (
+    SELECT * ,
+    MAX(discharged_at) OVER (PARTITION BY patient_id ORDER BY ADMITTED_AT
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_max_discharge
+    FROM stay
+) ,
+numbered as(
+    SELECT *,
+    CASE WHEN prev_max_discharge IS NULL
+    OR DATEDIFF(day, prev_max_discharge, ADMITTED_AT) > 0 THEN 1
+    ELSE 0 END AS new_episode
+    from FLAGGED
+),
+episodes as (
+    SELECT *,
+    SUM(new_episode) OVER (PARTITION BY patient_id ORDER BY ADMITTED_AT
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS episode_number
+    FROM numbered
+)
+ SELECT * FROM episodes</code></pre></div>
+        <div class="why"><b>Finding:</b> one patient has 66 separate inpatient episodes — plausible for a lifetime
+        simulation with a chronic condition, but an outlier to remember.</div>
+      </div>
+
+      <div class="topic" id="window-walkthrough">
+        <h3><span class="tag concept">Doubt answered</span> How the window function works, step by step</h3>
+        <p><code>MAX(discharged_at) OVER (PARTITION BY patient_id ORDER BY admitted_at ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)</code></p>
+        <table>
+          <tr><th>Piece</th><th>Does</th></tr>
+          <tr><td><code>PARTITION BY patient_id</code></td><td>Splits rows into one group per patient. Unlike <code>GROUP BY</code>, no rows are collapsed.</td></tr>
+          <tr><td><code>ORDER BY admitted_at</code></td><td>Sorts inside each group</td></tr>
+          <tr><td><code>ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING</code></td><td>The <b>frame</b>: first row of the group up to the row before the current one</td></tr>
+          <tr><td><code>MAX(discharged_at)</code></td><td>Latest discharge among the rows in the frame</td></tr>
+        </table>
+        <table>
+          <tr><th>Stay (one patient)</th><th>Frame</th><th><code>prev_max_discharge</code></th><th>Gap</th><th><code>new_episode</code></th><th><code>episode_number</code></th></tr>
+          <tr><td>A: Jan 1 – Jan 10</td><td>none</td><td>NULL</td><td>—</td><td>1</td><td>1</td></tr>
+          <tr><td>B: Jan 3 – Jan 5</td><td>A</td><td>Jan 10</td><td>negative (overlap)</td><td>0</td><td>1</td></tr>
+          <tr><td>C: Jan 10 – Jan 14</td><td>A, B</td><td>Jan 10</td><td>0 (same-day transfer)</td><td>0</td><td>1</td></tr>
+          <tr><td>D: Mar 2 – Mar 6</td><td>A, B, C</td><td>Jan 14</td><td>47 days</td><td>1</td><td>2</td></tr>
+        </table>
+        <div class="why"><b>Why MAX of all earlier rows, not just the previous row:</b> stay C follows B, which ended Jan 5 —
+        that alone looks like a 5-day gap. But the patient was still in hospital under A until Jan 10. The running
+        maximum handles a short stay nested inside a long one.<br>
+        <b>Two frames:</b> <code>… AND 1 PRECEDING</code> excludes the current row ("what happened before me?");
+        <code>ROWS UNBOUNDED PRECEDING</code> = <code>… AND CURRENT ROW</code> includes it ("running total so far").
+        A window function adds a column and never changes the row count.</div>
+      </div>
+
+      <div class="topic" id="same-vs-new-episode">
+        <h3><span class="tag concept">Doubt answered</span> Why is row 2 the same episode but row 4 a new one?</h3>
+        <p>One question per stay: <b>had the patient already left the hospital before this stay began?</b></p>
+        <table>
+          <tr><th>Gap = days from <code>prev_max_discharge</code> to <code>admitted_at</code></th><th>Meaning</th><th>New episode?</th></tr>
+          <tr><td>NULL</td><td>First stay ever</td><td>Yes</td></tr>
+          <tr><td>Negative</td><td>Admitted while an earlier stay was still running</td><td>No</td></tr>
+          <tr><td>0</td><td>Same-day transfer</td><td>No</td></tr>
+          <tr><td>1 or more</td><td>Went home, came back</td><td>Yes</td></tr>
+        </table>
+        <div class="why"><b>Why <code>DATEDIFF('day')</code> is right here:</b> it counts midnights crossed, so "same
+        calendar day" = 0 = transfer, and "a later day" ≥ 1 = return. <b>Why it matters:</b> without the merge, A's
+        discharge on Jan 10 and C's admission on Jan 10 would count as a readmission although the patient never left —
+        the 3,370 artifacts that inflated the rate from 16% to 21%. <b>Why 1/0, not TRUE/FALSE:</b> the next step sums
+        the flags. Flag the starts, then running-sum the flags = <b>gaps-and-islands</b>.</div>
+      </div>
+
+      <div class="topic" id="where-vs-having">
+        <h3><span class="tag concept">Doubt answered</span> <code>WHERE</code> vs <code>HAVING</code></h3>
+        <p><code>SELECT count(patient_id) as c, patient_id FROM … WHERE c &gt; 3</code> fails twice: no
+        <code>GROUP BY</code>, and <code>WHERE</code> runs before the count exists.</p>
+        <table>
+          <tr><th>Clause</th><th>Filters</th><th>Runs</th></tr>
+          <tr><td><code>WHERE</code></td><td>Individual rows</td><td>Before grouping</td></tr>
+          <tr><td><code>HAVING</code></td><td>Groups, using <code>COUNT</code> / <code>SUM</code> …</td><td>After grouping</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>-- order SQL runs in: FROM -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY
+SELECT patient_id, COUNT(*) AS c
+FROM carepulse_db.core.inpatient_episodes
+GROUP BY patient_id
+HAVING COUNT(*) > 3
+ORDER BY c DESC;</code></pre></div>
+        <div class="why">With <code>GROUP BY</code>, every selected column must be a grouping column or inside an
+        aggregate. Snowflake accepts <code>HAVING c &gt; 3</code> with the alias; <code>HAVING COUNT(*) &gt; 3</code>
+        is the portable form.</div>
+      </div>
+
+      <div class="topic" id="episode-exploration">
+        <h3><span class="tag concept">Reference</span> Exploration query — label each stay</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT admitted_at, discharged_at, prev_max_discharge,
+       DATEDIFF('day', prev_max_discharge, admitted_at) AS gap_days,
+       CASE
+           WHEN prev_max_discharge IS NULL THEN 'first stay'
+           WHEN DATEDIFF('day', prev_max_discharge, admitted_at) &lt; 0 THEN 'overlap'
+           WHEN DATEDIFF('day', prev_max_discharge, admitted_at) = 0 THEN 'same-day transfer'
+           ELSE 'new episode'
+       END AS stay_type
+FROM carepulse_db.core.inpatient_episodes
+WHERE patient_id = '&lt;id&gt;'
+ORDER BY admitted_at;</code></pre></div>
+        <div class="why">Works while the model still has one row per stay (Steps 2–4). Expected totals across all patients:
+        first stay 19,904 · overlap + same-day 3,370 · new episode 33,028. 19,904 + 33,028 = 52,932 episodes. (The
+        overlap / same-day split was not run; it may differ slightly from the profiling's 789 / 2,581, which compared
+        each stay only with the one before it.)</div>
+      </div>
+
+      <div class="topic error" id="episodes-errors">
+        <h3><span class="tag error">Errors</span> Mistakes while building <code>inpatient_episodes</code></h3>
+        <table>
+          <tr><th>What was written</th><th>What happened</th><th>Lesson</th></tr>
+          <tr><td><code>WHERE inpatient = TRUE</code></td><td><code>inpatient</code> is a value, not a column</td><td><code>column = 'value'</code>: <code>encounter_class = 'inpatient'</code>. <code>= TRUE</code> is for boolean columns.</td></tr>
+          <tr><td>CTE with no final SELECT</td><td>A CTE alone returns nothing</td><td>End with <code>SELECT * FROM &lt;last cte&gt;</code>; names must match exactly</td></tr>
+          <tr><td><code>ROW BETWEEN</code></td><td>Syntax error</td><td><code>ROWS BETWEEN</code></td></tr>
+          <tr><td>Check failed: <code>invalid identifier 'PREV_MAX_DISCHARGE'</code></td><td>Table was built from an older, unsaved version of the file</td><td><b>Save, then run, then check.</b> dbt reads from disk.</td></tr>
+          <tr><td><code>DATEDIFF(ADMITTED_AT, prev_max_discharge)</code></td><td>No unit; dates reversed</td><td><code>DATEDIFF(unit, earlier, later)</code></td></tr>
+          <tr><td><code>numbered</code> CTE without <code>FROM</code></td><td><code>SELECT *</code> has nothing to read</td><td>Every CTE is a complete query with its own <code>FROM</code></td></tr>
+        </table>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Walk me through the gaps-and-islands pattern.</p>
+        <p class="a">It groups consecutive or overlapping rows into "islands". Three steps. First, for each row, find what
+        came before — in my case the latest discharge among the patient's earlier stays, using a running MAX with a
+        frame that ends one row before the current one. Second, flag the rows that start a new island: no earlier row,
+        or a gap of at least a day. Third, take a running SUM of those flags per patient; every row in the same island
+        gets the same number. Then GROUP BY that number to collapse each island to one row. I used a running MAX rather
+        than LAG because a short stay nested inside a longer one would otherwise look like a gap.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Snowflake doesn't enforce foreign keys. How do you protect joins?</p>
+        <p class="a">With a dbt <code>relationships</code> test on the child column. In CarePulse every one of 3.4 million
+        encounter rows is checked against the patients model on each build, so an orphan key fails the build instead of
+        silently dropping rows from an inner join downstream.</p>
+      </div>
+
+      <div class="topic error" id="session10-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td><code>inpatient_episodes</code> Step 5</td><td><code>episode_span</code>: <code>GROUP BY patient_id, episode_number</code> with <code>MIN(admitted_at)</code>, <code>MAX(discharged_at)</code>, <code>COUNT(*) AS stays_in_episode</code> → 52,932 rows, stays sum to 56,302</td></tr>
+          <tr><td>Steps 6–7</td><td>Exclusion flags via <code>ref('patients')</code> (991 died in episode · 9 death before admission · 7 hospice), then the 30-day label → 51,925 eligible, 16.0%</td></tr>
+          <tr><td>Tests for the model</td><td>Unique episode key; singular tests pinning 51,925 and 16.0%</td></tr>
+          <tr><td>Commit</td><td><code>inpatient_episodes.sql</code> is work in progress on <code>core-layer</code> (last commit 3153ebe = encounters)</td></tr>
+          <tr><td>Still open from Session 9</td><td>Column descriptions + <code>dbt docs</code>; schema naming before FEATURE_STORE; PR to master; pytest + CI; <code>repartition(8)</code> experiment</td></tr>
         </table>
       </div>
 
