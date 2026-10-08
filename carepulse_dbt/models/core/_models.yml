@@ -24,3 +24,25 @@ models:
               arguments:
                 to: ref('patients')
                 field: patient_id
+  - name: "inpatient_episodes"
+    description: "One row per inpatient hospital episode, built from core.encounters and core.patients. Overlapping and same-day stays are merged into one episode. Flags mark episodes where the patient died or was discharged to hospice, is_eligible_index marks the trainable episodes, and readmitted_30d is the 30-day readmission label."
+    columns:
+      - name: "episode_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "is_eligible_index"
+        data_tests:
+          - not_null
+      - name: "readmitted_30d"
+        data_tests:
+          - not_null              
+
+          
