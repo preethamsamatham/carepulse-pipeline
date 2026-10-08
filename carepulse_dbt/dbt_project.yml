@@ -32,3 +32,5 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   carepulse_dbt:
     +materialized: table
+    feature_store:
+      +schema: feature_store
