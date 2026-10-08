@@ -164,11 +164,11 @@ nav.toc a.dbt{color:#5E7A5B}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 10</span>
+    <span class="meta-pill">Sessions: 11</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · label defined (51,925 episodes, 16.0%) · CORE in dbt: patients + encounters built and tested · inpatient_episodes steps 1–4 of 7</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1)</span>
   </div>
 </header>
 
@@ -434,6 +434,17 @@ nav.toc a.dbt{color:#5E7A5B}
     <a class="dbt" href="#where-vs-having"><span class="dot"></span>WHERE vs HAVING</a>
     <a class="dbt" href="#episodes-errors"><span class="dot"></span>Episode model errors</a>
     <a class="dbt" href="#session10-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session11"><span class="dot"></span>Session 11 — CORE done, PR #1</a>
+    <a class="dbt" href="#episodes-complete"><span class="dot"></span>Episodes: all 9 steps</a>
+    <a class="dbt" href="#rate-correction"><span class="dot"></span>16.3%, not 16.0%</a>
+    <a class="dbt" href="#episodes-concepts"><span class="dot"></span>JOIN, EXISTS, LEAD</a>
+    <a class="dbt" href="#death-boundary-bug"><span class="dot"></span>Boundary bug (164 deaths)</a>
+    <a class="dbt" href="#episodes-tests"><span class="dot"></span>Episode tests</a>
+    <a class="dbt" href="#ref-dependency-bug"><span class="dot"></span>ref() dependency bug</a>
+    <a class="dbt" href="#full-build"><span class="dot"></span>dbt build: PASS=24</a>
+    <a class="dbt" href="#why-tests"><span class="dot"></span>Why test at all</a>
+    <a class="dbt" href="#first-pr"><span class="dot"></span>First pull request</a>
+    <a class="dbt" href="#session11-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -2597,7 +2608,7 @@ episode_span AS (SELECT patient, episode_no, MIN(admitted_at) AS admitted_at,
           <tr><td>− died during episode</td><td>991</td></tr>
           <tr><td>− deathdate <i>before</i> admission (data issue)</td><td>9</td></tr>
           <tr><td>− discharged to hospice</td><td>7</td></tr>
-          <tr><td><b>Eligible index episodes (training rows)</b></td><td><b>51,925</b></td></tr>
+          <tr><td><b>Eligible index episodes (training rows)</b></td><td><b>51,925</b> — 8,444 readmitted = <b>16.3%</b> (<a href="#rate-correction">computed in Session 11</a>; the 16.0% above is over all 52,932 episodes)</td></tr>
         </table>
         <div class="why"><b>Checks:</b> episodes stayed 52,932 after the join → every inpatient encounter's patient
         exists (referential integrity). Exactly 1,000 deaths looked too neat — splitting by timing found <b>9 patients
@@ -3224,7 +3235,7 @@ SELECT * FROM flagged     -- the final SELECT is what comes out</code></pre></di
           <tr><td>4</td><td><code>episodes</code></td><td>Running sum → <code>episode_number</code></td><td>52,932 distinct (patient, episode) · max 66</td><td>✓</td></tr>
           <tr><td>5</td><td><code>episode_span</code></td><td><code>GROUP BY</code> to one row per episode</td><td>52,932 rows · stays sum to 56,302</td><td>next</td></tr>
           <tr><td>6</td><td>—</td><td>Exclusion flags (join <code>ref('patients')</code>)</td><td>991 + 9 + 7</td><td></td></tr>
-          <tr><td>7</td><td>—</td><td>30-day readmission label</td><td>51,925 eligible · 16.0%</td><td></td></tr>
+          <tr><td>7</td><td>—</td><td>30-day readmission label</td><td>51,925 eligible · 16.3% (<a href="#rate-correction">corrected</a>)</td><td>✓ Session 11</td></tr>
         </table>
         <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>WITH stay AS (
     SELECT
@@ -3376,11 +3387,312 @@ ORDER BY admitted_at;</code></pre></div>
         <h3><span class="tag error">Open items</span> Carried forward</h3>
         <table>
           <tr><th>Item</th><th>Next action</th></tr>
-          <tr><td><code>inpatient_episodes</code> Step 5</td><td><code>episode_span</code>: <code>GROUP BY patient_id, episode_number</code> with <code>MIN(admitted_at)</code>, <code>MAX(discharged_at)</code>, <code>COUNT(*) AS stays_in_episode</code> → 52,932 rows, stays sum to 56,302</td></tr>
-          <tr><td>Steps 6–7</td><td>Exclusion flags via <code>ref('patients')</code> (991 died in episode · 9 death before admission · 7 hospice), then the 30-day label → 51,925 eligible, 16.0%</td></tr>
-          <tr><td>Tests for the model</td><td>Unique episode key; singular tests pinning 51,925 and 16.0%</td></tr>
-          <tr><td>Commit</td><td><code>inpatient_episodes.sql</code> is work in progress on <code>core-layer</code> (last commit 3153ebe = encounters)</td></tr>
+          <tr><td><code>inpatient_episodes</code> Step 5</td><td><b>Done in <a href="#episodes-complete">Session 11</a></b> — 52,932 rows, stays sum to 56,302</td></tr>
+          <tr><td>Steps 6–7</td><td><b>Done in <a href="#episodes-complete">Session 11</a></b> — 991 · 9 · 7 excluded → 51,925 eligible, <a href="#rate-correction">16.3%</a></td></tr>
+          <tr><td>Tests for the model</td><td><b>Done in <a href="#episodes-tests">Session 11</a></b> — 6 column tests + 2 singular tests</td></tr>
+          <tr><td>Commit</td><td><b>Done</b> — model 268f172, tests 4d3bf4d, merged to master in <a href="#first-pr">PR #1</a></td></tr>
           <tr><td>Still open from Session 9</td><td>Column descriptions + <code>dbt docs</code>; schema naming before FEATURE_STORE; PR to master; pytest + CI; <code>repartition(8)</code> experiment</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session11">
+      <div class="session-head">
+        <h2>Session 11 — inpatient_episodes Complete, Tested, and Merged (PR #1)</h2>
+        <span class="date">Oct 7, 2026</span>
+      </div>
+
+      <div class="topic decision" id="episodes-complete">
+        <h3><span class="tag decision">Verified</span> <code>core.inpatient_episodes</code> — all nine CTEs, every step checked against profiling</h3>
+        <table>
+          <tr><th>#</th><th>CTE</th><th>Does</th><th>Check</th><th>Result</th></tr>
+          <tr><td>1</td><td><code>stay</code></td><td>Inpatient encounters; start/stop → admitted/discharged</td><td>rows · patients</td><td>56,302 · 19,904</td></tr>
+          <tr><td>2</td><td><code>flagged</code></td><td>Running MAX of earlier discharges</td><td>NULLs</td><td>19,904</td></tr>
+          <tr><td>3</td><td><code>numbered</code></td><td><code>new_episode</code> 1/0</td><td>SUM</td><td>52,932</td></tr>
+          <tr><td>4</td><td><code>episodes</code></td><td>Running SUM → <code>episode_number</code></td><td>distinct · max</td><td>52,932 · 66</td></tr>
+          <tr><td>5</td><td><code>episode_span</code></td><td><code>GROUP BY</code> patient, episode: MIN admit, MAX discharge, COUNT stays</td><td>rows · stays · merged · max</td><td>52,932 · 56,302 · 2,368 · 4</td></tr>
+          <tr><td>6</td><td><code>with_death</code></td><td>Join <code>ref('patients')</code>; two death flags</td><td>died · before admission · both</td><td>991 · 9 · 0</td></tr>
+          <tr><td>7</td><td><code>with_hospice</code></td><td><code>EXISTS</code> hospice encounter within 1 day of discharge</td><td>hospice · eligible</td><td>7 · 51,925</td></tr>
+          <tr><td>8</td><td><code>with_next</code></td><td><code>LEAD</code> → next episode's admission</td><td>—</td><td>—</td></tr>
+          <tr><td>9</td><td><code>final</code></td><td>Key, eligibility flag, gap, label</td><td>ids · readmitted · eligible · eligible+readmitted</td><td>52,932 · 8,445 · 51,925 · <b>8,444</b></td></tr>
+        </table>
+        <div class="why"><b>Funnel:</b> 56,302 stays → 52,932 episodes → − 991 died · − 9 death before admission ·
+        − 7 hospice → <b>51,925 eligible index episodes · 8,444 readmitted within 30 days · 16.3%</b>.
+        Stays per episode: 2,368 episodes absorbed the 3,370 merged stays, at most 4 stays in one episode.</div>
+      </div>
+
+      <div class="topic error" id="rate-correction">
+        <h3><span class="tag error">Correction</span> The readmission rate is 16.3%, not 16.0%</h3>
+        <p>Earlier notes said "51,925 eligible, 16.0%". The 16.0% was <b>8,445 / 52,932</b> — all episodes, before the
+        exclusions. The rate among the trainable rows had never been calculated.</p>
+        <table>
+          <tr><th>Base</th><th>Readmitted</th><th>Rate</th></tr>
+          <tr><td>All 52,932 episodes</td><td>8,445</td><td>16.0%</td></tr>
+          <tr><td><b>51,925 eligible episodes (training set)</b></td><td><b>8,444</b></td><td><b>16.3%</b></td></tr>
+        </table>
+        <div class="why"><b>Quote this one:</b> 51,925 training episodes, 16.3% positive. The one readmission outside the
+        eligible set follows an excluded episode (hospice or a death-date data issue) — it was still counted because the
+        model keeps every row and flags it.</div>
+      </div>
+
+      <div class="topic decision" id="episodes-final-sql">
+        <h3><span class="tag decision">Reference</span> Steps 5–9 as written</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>episode_span AS (
+    SELECT patient_id,
+           episode_number,
+           MIN(ADMITTED_AT) AS admitted_at,
+           MAX(DISCHARGED_AT) AS discharged_at,
+           COUNT(*) AS stay_in_episode
+           FROM episodes
+           GROUP BY patient_id, episode_number
+           ),
+ with_death AS (
+    SELECT e.*,
+    p.death_date,
+    (p.death_date IS NOT NULL AND p.death_date &lt; e.admitted_at ::DATE) AS death_before_admission,
+    (p.death_date IS NOT NULL AND p.death_date &gt;= e.admitted_at ::DATE
+        AND p.death_date &lt;= DATEADD(day, 1, e.discharged_at ::DATE)) AS died_in_episode
+    FROM episode_span e
+    JOIN {{ ref('patients') }} p
+    ON e.patient_id = p.patient_id
+ ),
+ with_hospice AS (
+    SELECT d.*,
+    EXISTS (
+        SELECT 1
+        FROM {{ ref('encounters') }} h
+        WHERE h.patient_id = d.patient_id
+        AND h.encounter_class = 'hospice'
+        AND h.start_ts BETWEEN d.discharged_at AND DATEADD(day, 1, d.discharged_at)
+    ) AS discharged_to_hospice
+    FROM with_death d
+ ),
+ with_next AS (
+    SELECT *,
+    LEAD(admitted_at) OVER (PARTITION BY patient_id ORDER BY admitted_at) AS next_admission_at
+    FROM with_hospice
+ ),
+ final AS (
+    SELECT
+    patient_id || '-' || episode_number AS episode_id,
+    patient_id, episode_number, admitted_at, discharged_at, stay_in_episode,
+    death_date, died_in_episode, death_before_admission, discharged_to_hospice,
+    (NOT died_in_episode AND NOT death_before_admission AND NOT discharged_to_hospice) AS is_eligible_index,
+    next_admission_at,
+    DATEDIFF('day', discharged_at, next_admission_at) AS days_to_next_admission,
+    (next_admission_at IS NOT NULL
+        AND DATEDIFF('day', discharged_at, next_admission_at) &lt;= 30) AS readmitted_30d
+    FROM with_next
+ )
+ SELECT * FROM final</code></pre></div>
+      </div>
+
+      <div class="topic" id="episodes-concepts">
+        <h3><span class="tag concept">Concepts</span> What each new step relies on</h3>
+        <table>
+          <tr><th>Technique</th><th>Where</th><th>Why</th></tr>
+          <tr><td><code>GROUP BY</code> + <code>MIN</code>/<code>MAX</code>/<code>COUNT(*)</code></td><td><code>episode_span</code></td><td>An episode runs from its first admission to its last discharge. Every selected column must be grouped or aggregated, so stay-level columns (<code>encounter_id</code>, flags) drop out.</td></tr>
+          <tr><td>Table aliases <code>e</code> / <code>p</code></td><td><code>with_death</code></td><td>Both tables have <code>patient_id</code>; the letter before the dot must match an alias in <code>FROM</code>/<code>JOIN</code>.</td></tr>
+          <tr><td><code>::DATE</code></td><td><code>with_death</code></td><td>Compare a date with a date. A plain date against a timestamp is treated as midnight.</td></tr>
+          <tr><td><code>IS NOT NULL AND …</code></td><td>both death flags</td><td>Living patients have NULL <code>death_date</code>; <code>NULL &lt; x</code> is NULL. The guard makes the flag FALSE, so a flag column holds only TRUE/FALSE.</td></tr>
+          <tr><td><code>DATEADD('day', 1, …)</code></td><td>death + hospice windows</td><td>One day of slack — a death or hospice start recorded the day after discharge still counts. A documented assumption.</td></tr>
+          <tr><td><code>EXISTS (SELECT 1 …)</code></td><td><code>with_hospice</code></td><td>Yes/no "is there at least one matching row?" The inner query refers to the outer row (<code>d.</code>) — a correlated subquery, evaluated per episode.</td></tr>
+          <tr><td><code>LEAD(x) OVER (…)</code></td><td><code>with_next</code></td><td>Value from the next row in the partition; no frame needed; NULL for the last episode.</td></tr>
+          <tr><td><code>||</code></td><td><code>episode_id</code></td><td>Joins text: <code>patient_id || '-' || episode_number</code> → one key column tests can check.</td></tr>
+        </table>
+        <div class="why"><b>Two design decisions.</b> (1) <b>Keep all 52,932 rows and flag them</b> rather than filtering:
+        <code>LEAD</code> must see every episode, or a readmission into an episode that later ends in death would vanish.
+        Downstream layers filter on <code>is_eligible_index</code>. (2) <b>No lower bound on the gap:</b> the merge in
+        step 3 guarantees the next episode starts ≥ 1 day after this discharge, so <code>&lt;= 30</code> is enough.</div>
+      </div>
+
+      <div class="topic error" id="death-boundary-bug">
+        <h3><span class="tag error">Bug caught</span> 164 in-hospital deaths labelled as data errors — a boundary bug</h3>
+        <p>First run of the death flags: <b>827 died · 173 before admission</b>, expected 991 · 9. The total (1,000) was
+        right; 164 rows were in the wrong flag. The model built without any error.</p>
+        <table>
+          <tr><th>Written</th><th>Death and admission on the same day (Jan 5 vs Jan 5)</th></tr>
+          <tr><td><code>death_date &lt;= admitted::DATE</code> → before admission</td><td>TRUE ✗</td></tr>
+          <tr><td><code>death_date &gt; admitted::DATE</code> → died in episode</td><td>FALSE ✗</td></tr>
+          <tr><td><b>Fix:</b> <code>&lt;</code> and <code>&gt;=</code></td><td>same-day death → died in episode ✓</td></tr>
+        </table>
+        <div class="why"><b>Lesson:</b> when two conditions split a range, ask "what happens when the values are
+        <b>equal</b>?" — exactly one condition must claim that case. The first diagnosis offered (a missing <code>::DATE</code>)
+        fit the numbers but was wrong; reading the code found the real cause. A number that fits a theory is not proof —
+        read the code.</div>
+      </div>
+
+      <div class="topic error" id="session11-errors">
+        <h3><span class="tag error">Errors</span> Smaller mistakes this session</h3>
+        <table>
+          <tr><th>What happened</th><th>Cause</th><th>Lesson</th></tr>
+          <tr><td>Syntax error after <code>MAX(...) AS discharged_at</code></td><td>Missing comma</td><td>Every SELECT column is comma-separated</td></tr>
+          <tr><td><code>unexpected '_episode'</code></td><td><code>AS stay_in _episode</code> — space in a name</td><td>Names are one word</td></tr>
+          <tr><td><code>invalid identifier 'STAYS_IN_EPISODE'</code></td><td>Column is <code>stay_in_episode</code></td><td><code>DESC TABLE</code> before guessing; pick a name and keep it</td></tr>
+          <tr><td><code>invalid identifier 'D.DEATH_DATE'</code></td><td>Alias <code>d</code> not defined (table was <code>p</code>)</td><td>Alias letter must match <code>FROM</code>/<code>JOIN</code></td></tr>
+          <tr><td><code>does not match any enabled nodes</code></td><td><code>--select inpatient_episode</code> (missing s)</td><td>Model name = file name; ↑ recalls earlier commands</td></tr>
+          <tr><td>"How do I rename a column?"</td><td>—</td><td>Change the name after <code>AS</code> in the model and re-run. Not <code>ALTER TABLE</code> — the next <code>dbt run</code> would rebuild the old name. The model file is the source of truth.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="episodes-tests">
+        <h3><span class="tag decision">Verified</span> Tests on <code>inpatient_episodes</code> — written by me, <code>PASS=9</code></h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code># _models.yml — third model, same staircase as encounters
+  - name: "inpatient_episodes"
+    description: "One row per inpatient hospital episode ..."
+    columns:
+      - name: "episode_id"
+        data_tests: [not_null, unique]          # written as a list in the file
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "is_eligible_index"
+        data_tests: [not_null]
+      - name: "readmitted_30d"
+        data_tests: [not_null]
+
+-- tests/episodes_readmission_window.sql
+SELECT episode_id, discharged_at, next_admission_at, days_to_next_admission
+FROM {{ ref('inpatient_episodes') }}
+WHERE readmitted_30d = TRUE
+AND days_to_next_admission NOT BETWEEN 1 AND 30
+
+-- tests/episodes_eligible_count.sql   (regression test)
+SELECT count(*)
+FROM {{ ref('inpatient_episodes') }}
+WHERE is_eligible_index = TRUE
+HAVING count(*) &lt;&gt; 51925</code></pre></div>
+        <div class="why"><b>Self-check for any test:</b> "if the data is perfect, how many rows does this return?" — the
+        answer must be zero. <b>Count tests:</b> an aggregate always returns one row, so <code>HAVING</code> decides
+        whether to show it; with no <code>GROUP BY</code> the whole table is one group. <b>Prove a test works</b> by
+        seeing it fail once (change 51925 to 51924), then change it back.</div>
+      </div>
+
+      <div class="topic error" id="test-errors">
+        <h3><span class="tag error">Errors</span> Writing the tests</h3>
+        <table>
+          <tr><th>What happened</th><th>Cause</th><th>Fix / lesson</th></tr>
+          <tr><td><code>Custom key 'columns' found at models[1].columns[2]</code>; only 14 tests found</td><td>New model block at 6 spaces — read as a third <i>column</i> of <code>encounters</code></td><td>Model items at 2 spaces; read the path in the warning (index from 0)</td></tr>
+          <tr><td>Description talked about "number of episodes… encounter_type"</td><td>Described a count, and a column that doesn't exist</td><td>Describe one row, its source, the decisions built in</td></tr>
+          <tr><td><code>invalid identifier 'EPISODE_ID'</code></td><td>No <code>FROM</code> line</td><td>Every query needs a source</td></tr>
+          <tr><td>Window test written with <code>BETWEEN 1 AND 30</code></td><td>Selected the <i>good</i> rows (8,445) — would fail on perfect data</td><td><code>NOT BETWEEN</code>: tests return rule-breakers</td></tr>
+          <tr><td><code>FAIL 1</code> — "Got 1 result, configured to fail if != 0"</td><td>Count with no <code>HAVING</code></td><td><b>FAIL</b> = SQL ran and returned rows; <b>ERROR</b> = SQL couldn't run</td></tr>
+          <tr><td>"Found 20 tests"; selection matched nothing</td><td>Test file not saved / not in <code>tests\</code></td><td><code>Get-ChildItem tests</code>; read the "Found N" line</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="ref-dependency-bug">
+        <h3><span class="tag error">Bug caught</span> A test that passed but wasn't connected — <code>PASS=8</code> instead of 9</h3>
+        <p><code>episodes_readmission_window.sql</code> had <code>FROM inpatient_episodes</code> — a bare name. It worked
+        only because dbt's connection sits in <code>CAREPULSE_DB.CORE</code>.</p>
+        <table>
+          <tr><th>Symptom in the log</th><th>Meaning</th></tr>
+          <tr><td><code>dbt build --select inpatient_episodes</code> → PASS=8 (expected 9)</td><td>The test wasn't attached to the model</td></tr>
+          <tr><td>In the full build it ran <b>first</b>, before the model was rebuilt</td><td>It was checking yesterday's table</td></tr>
+        </table>
+        <div class="why"><b>Fix:</b> <code>FROM {{ ref('inpatient_episodes') }}</code> → PASS=9, test runs after the model.
+        <b>Lesson:</b> nothing failed — the only clues were a count one short and a test in the wrong position. Compare
+        what ran against what you expected to run. Also: two similar files are easy to mix up — check the tab name and
+        confirm with <code>type</code>, which shows what is saved on disk (what dbt reads).</div>
+      </div>
+
+      <div class="topic decision" id="full-build">
+        <h3><span class="tag decision">Verified</span> Whole CORE layer in one command — <code>dbt build</code> → <code>PASS=24</code></h3>
+        <table>
+          <tr><th>Order</th><th>What ran</th><th>Why then</th></tr>
+          <tr><td>1</td><td>Source tests on RAW (4)</td><td>Nothing depends on anything yet</td></tr>
+          <tr><td>2</td><td><code>patients</code> and <code>encounters</code> together</td><td>Neither needs the other</td></tr>
+          <tr><td>3</td><td>Their tests</td><td>Patients' tests start while encounters is still building</td></tr>
+          <tr><td>4</td><td><code>inpatient_episodes</code></td><td>Waits for both models <b>and</b> their tests</td></tr>
+          <tr><td>5</td><td>Its tests (8)</td><td>After the model</td></tr>
+        </table>
+        <div class="why">3 models + 21 tests in ~10.5 s. <code>dbt build</code> will not build a model on top of a failed
+        test — the downstream model shows SKIP, so bad data stops at the layer where it appears.</div>
+      </div>
+
+      <div class="topic" id="why-tests">
+        <h3><span class="tag concept">Doubt answered</span> Why test at all?</h3>
+        <p>Because SQL can run perfectly and still be <b>wrong</b>. Snowflake stops you only for syntax and missing
+        columns; wrong logic, joins and numbers go through quietly. Every bug in this project so far was silent: the
+        death-flag boundary, the 21% label, the bare-name test, the <code>'000'</code> ZIPs.</p>
+        <table>
+          <tr><th>What changes</th><th>Example</th><th>Test that catches it</th></tr>
+          <tr><td>The data</td><td>Next load duplicates encounter IDs</td><td><code>unique</code></td></tr>
+          <tr><td>The code</td><td>Someone "tidies" the episode merge</td><td><code>episodes_eligible_count</code></td></tr>
+          <tr><td>Upstream</td><td>An encounter references a missing patient</td><td><code>relationships</code></td></tr>
+        </table>
+        <div class="why">A test is a <b>written-down assumption</b>. Everything downstream — features, the ML model, a
+        patient flagged as high risk — trusts CORE, and a model trained on a wrong label learns the wrong thing
+        confidently.</div>
+      </div>
+
+      <div class="topic decision" id="first-pr">
+        <h3><span class="tag decision">Done</span> First pull request — <code>core-layer</code> → <code>master</code> (PR #1)</h3>
+        <table>
+          <tr><th>Step</th><th>What / why</th></tr>
+          <tr><td>Compare</td><td><b>base:</b> master ← <b>compare:</b> core-layer; "Able to merge"</td></tr>
+          <tr><td>Title + description</td><td>What changed, row counts, the label funnel, tests, how to verify (<code>dbt build</code>)</td></tr>
+          <tr><td>Files changed</td><td>Checked: no <code>profiles.yml</code>, no <code>.p8</code>, nothing from <code>target/</code> or <code>logs/</code></td></tr>
+          <tr><td>Merge method</td><td><b>Create a merge commit</b> — keeps the step-by-step history (squash would collapse 10 commits into 1)</td></tr>
+          <tr><td>Extended message</td><td>Models, label numbers and test summary, so <code>git log</code> explains the merge without GitHub</td></tr>
+          <tr><td>Result</td><td>Merge commit <code>b142c2d</code> on master; <code>core-layer</code> deleted on GitHub and locally</td></tr>
+          <tr><td>Verified</td><td><code>dbt build</code> on master → <b>PASS=24</b>; <code>episodes_readmission_window</code> now runs after its model (step 18)</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>git checkout master
+git pull                     # "Fast-forward": master had no commits of its own since branching
+git log --oneline -5         # b142c2d (HEAD -> master, origin/master) Merge pull request #1 ...
+git branch -d core-layer     # -d refuses if anything is unmerged — safe
+git fetch --prune            # after "Delete branch" on GitHub: drops origin/core-layer locally</code></pre></div>
+        <div class="why"><b>Why a PR when working alone:</b> one last review of the whole change as a diff; the PR page is a
+        readable record for anyone browsing the repo; and CI (GitHub Actions running <code>dbt build</code>) will run on
+        PRs later.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Why do you test data pipelines, and how?</p>
+        <p class="a">Because tests catch the bugs that don't throw errors. SQL will return wrong numbers happily — in
+        CarePulse a boundary bug in my death flags put 164 in-hospital deaths into a data-error bucket, and the model
+        built without any error; only comparing against a known count caught it. So I encode every assumption as a dbt
+        test: unique and not-null keys, relationships between tables because Snowflake doesn't enforce foreign keys,
+        business rules as singular tests, and a regression test pinning the size of the training set. dbt build runs
+        them in dependency order and won't build a model on a failed test, so bad data stops where it appears.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Why did you keep excluded episodes in the table instead of filtering them out?</p>
+        <p class="a">Because the label needs to see them. Each episode's label comes from LEAD — the patient's next
+        admission. If a patient is readmitted and dies during that second stay, the second episode is excluded as a
+        training row, but the first one was still readmitted. Filtering before the LEAD would drop that readmission. So
+        the model keeps all 52,932 episodes with an is_eligible_index flag, and the feature layer filters to the 51,925
+        trainable rows.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Tell me about a bug you caught that didn't throw an error.</p>
+        <p class="a">A dbt test had a hard-coded table name instead of ref(). It passed every time, but dbt didn't know it
+        depended on the model, so it ran before the model was rebuilt — checking yesterday's table — and was skipped when
+        I selected that model. I noticed because the model's build showed one fewer test than I'd predicted, and in the
+        full build that test ran first instead of after its model. Switching to ref() fixed both. Now I predict the test
+        count before every build.</p>
+      </div>
+
+      <div class="topic error" id="session11-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Local cleanup</td><td><code>git fetch --prune</code> to drop the stale <code>origin/core-layer</code> reference (branch already deleted on GitHub)</td></tr>
+          <tr><td>Documentation</td><td>Column descriptions in <code>_models.yml</code>; <code>dbt docs generate</code> + <code>dbt docs serve</code> for the lineage graph</td></tr>
+          <tr><td>FEATURE_STORE layer</td><td>New branch; override <code>generate_schema_name</code> first so models land in <code>FEATURE_STORE</code>, not <code>CORE_FEATURE_STORE</code>; features per eligible episode (prior admissions, length of stay, conditions, medications)</td></tr>
+          <tr><td>Optional tidy</td><td>Lowercase column/CTE names in <code>inpatient_episodes.sql</code>; alias <code>count(*) AS eligible_count</code> in the count test</td></tr>
+          <tr><td>Still open</td><td>pytest for <code>transform_table.py</code> + GitHub Actions CI; <code>repartition(8)</code> experiment</td></tr>
         </table>
       </div>
 
