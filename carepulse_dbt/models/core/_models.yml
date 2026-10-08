@@ -1,0 +1,48 @@
+version: 2
+models:
+  - name: "patients"
+    description: "One row per patient, built from raw.patients. Column names are cleaned (id -> patient_id, marital -> marital_status), unknown ZIP3 ('000') is set to NULL, and geo_known flags whether the patient's location is known. Direct identifiers were removed upstream in the Glue job."
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "geo_known"
+        data_tests:
+          - not_null
+  - name: "encounters"
+    description: "One row per encounter, built from raw.encounters. Column names are cleaned (id -> encounter_id, patient -> patient_id, start -> start_ts, stop -> stop_ts, reasoncode -> reason_code, reasondescription -> reason_description), and length_of_stay_hours is calculated as the difference between start and stop timestamps in hours."
+    columns:
+      - name: "encounter_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+  - name: "inpatient_episodes"
+    description: "One row per inpatient hospital episode, built from core.encounters and core.patients. Overlapping and same-day stays are merged into one episode. Flags mark episodes where the patient died or was discharged to hospice, is_eligible_index marks the trainable episodes, and readmitted_30d is the 30-day readmission label."
+    columns:
+      - name: "episode_id"
+        data_tests:
+          - not_null
+          - unique
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "is_eligible_index"
+        data_tests:
+          - not_null
+      - name: "readmitted_30d"
+        data_tests:
+          - not_null              
+
+          
