@@ -1,159 +1,253 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CarePulse — Build Notes & Interview Prep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
+/* ===== Theme: "Asian store" — zakka-shop signboards, price tags, stickers, neon ===== */
 :root{
-  --caramel:#F6BC7C;
-  --onyx:#151611;
-  --aliceblue:#D9EAFA;
-  --ink:#151611;
-  --mute:#7d8a96;
+  --sign-red:#D3241C;
+  --sign-red-deep:#A8170F;
+  --sign-yellow:#FFD21F;
+  --ink:#16120E;
+  --paper:#FFFBF1;
+  --shelf:#F2E9D8;
+  --neon-pink:#FF3E8A;
+  --neon-cyan:#2EC4D6;
+  --lantern:#FF8A1F;
+  --mute:#7A6F62;
+  /* legacy names still referenced inside the page */
+  --caramel:#FFD21F;
+  --onyx:#16120E;
+  --aliceblue:#F2E9D8;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--aliceblue);color:var(--ink);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
-code{font-family:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;font-size:.85em;background:rgba(246,188,124,.18);color:var(--onyx);padding:1px 6px;border-radius:5px}
-a{color:var(--onyx)}
+body{
+  background:var(--shelf);
+  background-image:radial-gradient(rgba(22,18,14,.07) 1px,transparent 1.2px);
+  background-size:14px 14px;
+  color:var(--ink);
+  font-family:'M PLUS Rounded 1c','Segoe UI',system-ui,sans-serif;
+  line-height:1.65;-webkit-font-smoothing:antialiased
+}
+code{font-family:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;font-size:.85em;background:#FFF1B3;color:var(--ink);padding:1px 6px;border-radius:3px;border:1px solid rgba(22,18,14,.15)}
+a{color:var(--sign-red-deep)}
 
-/* header */
-header.hero{background:var(--caramel);padding:48px 32px 36px;position:relative;overflow:hidden}
-header.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.15)}
-.eyebrow{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:#3a2f1f;font-weight:800}
-header.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-.02em;color:#151611;margin:10px 0 8px;position:relative}
-header.hero p.sub{color:#3a2f1f;font-size:1.05rem;max-width:640px;position:relative}
-.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;position:relative}
-.meta-pill{background:rgba(255,255,255,.55);border:1.5px solid rgba(21,22,17,.15);color:#151611;font-size:.78rem;font-weight:700;padding:6px 14px;border-radius:999px}
+/* header — the shop front */
+header.hero{
+  background:var(--sign-red);
+  padding:64px 32px 36px;position:relative;overflow:hidden;
+  border-bottom:6px solid var(--ink);
+}
+header.hero::before{ /* striped awning */
+  content:"";position:absolute;left:0;right:0;top:0;height:22px;
+  background:repeating-linear-gradient(90deg,#fff 0 34px,var(--sign-red-deep) 34px 68px);
+  border-bottom:3px solid var(--ink);
+}
+header.hero::after{ /* vertical shop sign */
+  content:"学習ノート";
+  position:absolute;right:34px;top:48px;
+  writing-mode:vertical-rl;
+  font-family:'Dela Gothic One','M PLUS Rounded 1c',sans-serif;
+  font-size:1.6rem;letter-spacing:.12em;
+  background:#1F8A4C;color:#fff;
+  padding:16px 10px;border:3px solid var(--ink);border-radius:4px;
+  box-shadow:5px 5px 0 var(--ink);
+}
+.eyebrow{
+  display:inline-block;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink);background:var(--sign-yellow);font-weight:900;
+  padding:4px 10px;border:2px solid var(--ink);transform:rotate(-1.5deg)
+}
+header.hero h1{
+  font-family:'Dela Gothic One','M PLUS Rounded 1c',sans-serif;
+  font-size:clamp(2rem,5vw,3.3rem);font-weight:400;letter-spacing:-.005em;line-height:1.15;
+  color:var(--sign-yellow);margin:14px 0 10px;position:relative;max-width:calc(100% - 90px);
+  text-shadow:3px 3px 0 var(--ink)
+}
+header.hero p.sub{color:#FFF4E2;font-size:1.05rem;max-width:640px;position:relative;font-weight:500}
+.meta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;position:relative;max-width:calc(100% - 90px)}
+.meta-pill{ /* price tags */
+  position:relative;background:var(--sign-yellow);border:2px solid var(--ink);color:var(--ink);
+  font-size:.76rem;font-weight:800;padding:6px 14px 6px 22px;border-radius:3px;
+  box-shadow:3px 3px 0 var(--ink)
+}
+.meta-pill::before{content:"";position:absolute;left:8px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:var(--paper);border:1.5px solid var(--ink)}
+.meta-pill:nth-child(3n+2){transform:rotate(-1deg)}
+.meta-pill:nth-child(3n){transform:rotate(1deg);background:#fff}
+.meta-pill:last-child{transform:none}
 
-/* search */
-.searchbar{position:sticky;top:0;z-index:60;background:rgba(217,234,250,.95);backdrop-filter:blur(8px);border-bottom:2px solid rgba(21,22,17,.15);padding:12px 32px}
-.search-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;background:#fff;border:2px solid rgba(21,22,17,.18);border-radius:12px;padding:9px 16px}
-.search-inner:focus-within{border-color:var(--onyx);box-shadow:0 4px 18px -8px rgba(21,22,17,.4)}
-.s-icon{color:var(--onyx);flex:none}
+/* search — black shelf strip with neon focus */
+.searchbar{position:sticky;top:0;z-index:60;background:var(--ink);border-bottom:3px solid var(--sign-yellow);padding:12px 32px}
+.search-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--paper);border:2px solid var(--sign-yellow);border-radius:4px;padding:9px 16px}
+.search-inner:focus-within{border-color:var(--neon-pink);box-shadow:0 0 0 3px rgba(255,62,138,.35),0 0 18px rgba(255,62,138,.45)}
+.s-icon{color:var(--sign-red);flex:none}
 #q{flex:1;border:none;outline:none;font-size:.98rem;font-family:inherit;color:var(--ink);background:none}
-#q::placeholder{color:#a8b0ba}
-.s-count{font-size:.78rem;color:var(--mute);font-weight:700;white-space:nowrap}
-.s-clear{border:none;background:rgba(21,22,17,.1);color:var(--onyx);width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:1.15rem;line-height:1;display:none;flex:none}
-.s-clear:hover{background:var(--onyx);color:#fff}
+#q::placeholder{color:#9C907F}
+.s-count{font-size:.78rem;color:var(--sign-red);font-weight:800;white-space:nowrap}
+.s-clear{border:2px solid var(--ink);background:var(--sign-yellow);color:var(--ink);width:26px;height:26px;border-radius:3px;cursor:pointer;font-size:1.1rem;line-height:1;display:none;flex:none}
+.s-clear:hover{background:var(--sign-red);color:#fff}
 body.searching .s-clear{display:block}
-mark{background:var(--caramel);color:#151611;padding:0 3px;border-radius:3px;font-weight:700}
-mark.current{background:var(--onyx);color:var(--caramel);box-shadow:0 0 0 2px var(--onyx)}
+mark{background:var(--sign-yellow);color:var(--ink);padding:0 3px;border-radius:2px;font-weight:800}
+mark.current{background:var(--neon-pink);color:#fff;box-shadow:0 0 0 2px var(--ink)}
 .no-results{text-align:center;color:var(--mute);padding:50px;font-size:1.05rem;display:none}
 .s-hidden{display:none !important}
 
 /* layout */
 .wrap{max-width:1100px;margin:0 auto;padding:32px 32px 100px;display:grid;grid-template-columns:230px 1fr;gap:44px;align-items:start}
-nav.toc{position:sticky;top:78px;font-size:.9rem}
-nav.toc .lbl{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px;font-weight:800}
+nav.toc{position:sticky;top:78px;font-size:.9rem;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:6px}
+nav.toc .lbl{
+  display:inline-block;font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;
+  color:#fff;background:var(--sign-red);margin:20px 0 8px;font-weight:900;
+  padding:3px 9px;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink)
+}
 nav.toc .lbl:first-child{margin-top:0}
-nav.toc a{display:flex;align-items:center;gap:9px;padding:6px 0;color:#5a5248;text-decoration:none;font-weight:600;font-size:.87rem}
-nav.toc a:hover{color:var(--onyx)}
-nav.toc .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--caramel)}
+nav.toc a{display:flex;align-items:center;gap:9px;padding:5px 0;color:#3B332A;text-decoration:none;font-weight:700;font-size:.86rem}
+nav.toc a:hover{color:var(--sign-red)}
+nav.toc .dot{width:9px;height:9px;flex:none;background:var(--sign-yellow);border:1.5px solid var(--ink);transform:rotate(45deg)}
 
-/* session blocks */
-.session{margin-bottom:52px;scroll-margin-top:90px}
-.session-head{background:linear-gradient(120deg,var(--caramel),#fadfb4);border-radius:16px;padding:18px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-.session-head h2{font-size:1.35rem;font-weight:800;color:#151611;letter-spacing:-.01em}
-.session-head .date{font-size:.8rem;font-weight:700;color:#3a2f1f;background:rgba(255,255,255,.5);padding:5px 12px;border-radius:999px}
+/* session blocks — signboards */
+.session{margin-bottom:56px;scroll-margin-top:90px}
+.session-head{
+  background:var(--sign-red);border:3px solid var(--ink);border-radius:6px;
+  padding:18px 24px;margin-bottom:26px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  box-shadow:6px 6px 0 var(--ink);position:relative
+}
+.session-head::before{content:"";position:absolute;left:10px;right:10px;top:6px;height:2px;background:repeating-linear-gradient(90deg,var(--sign-yellow) 0 6px,transparent 6px 12px);opacity:.8}
+.session-head h2{font-family:'Dela Gothic One','M PLUS Rounded 1c',sans-serif;font-size:1.3rem;font-weight:400;color:var(--sign-yellow);letter-spacing:.005em;text-shadow:2px 2px 0 var(--ink)}
+.session-head h2 code{background:var(--paper);color:var(--ink);text-shadow:none;font-size:.75em}
+.session-head .date{font-size:.78rem;font-weight:900;color:var(--ink);background:var(--sign-yellow);padding:5px 12px;border:2px solid var(--ink);border-radius:3px;transform:rotate(1.5deg)}
 
-/* topic cards */
-.topic{background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:16px;border-left:5px solid var(--caramel);scroll-margin-top:90px}
-.topic.decision{border-left-color:var(--caramel)}
-.topic.error{border-left-color:var(--onyx)}
-.mini{font-size:.82rem;font-weight:800;color:var(--onyx);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px}
-.topic h3{font-size:1.08rem;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.topic .tag{font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:999px;flex:none}
-.tag.decision{background:rgba(246,188,124,.35);color:#151611}
-.tag.error{background:var(--onyx);color:var(--aliceblue)}
-.tag.concept{background:rgba(246,188,124,.2);color:#3a2f1f}
-.topic p{margin-bottom:10px;color:#2a2a28}
+/* topic cards — paper notes on the shelf */
+.topic{background:var(--paper);border:2px solid var(--ink);border-left:8px solid var(--sign-yellow);border-radius:4px;padding:22px 24px;margin-bottom:18px;scroll-margin-top:90px;box-shadow:4px 4px 0 rgba(22,18,14,.85)}
+.topic.decision{border-left-color:var(--sign-yellow)}
+.topic.error{border-left-color:var(--sign-red)}
+.mini{font-size:.82rem;font-weight:900;color:var(--sign-red);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px}
+.topic h3{font-size:1.08rem;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topic .tag{font-size:.64rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:2px;flex:none;border:2px solid var(--ink);transform:rotate(-2deg)}
+.tag.decision{background:var(--sign-yellow);color:var(--ink)}
+.tag.error{background:var(--sign-red);color:#fff}
+.tag.concept{background:var(--neon-cyan);color:var(--ink)}
+.topic p{margin-bottom:10px;color:#241E18}
 .topic p:last-child{margin-bottom:0}
-.topic .why{background:var(--aliceblue);border-radius:10px;padding:12px 16px;margin-top:10px;font-size:.92rem}
-.topic .why b{color:var(--onyx)}
+.topic .why{background:#FFF3B8;border:2px dashed rgba(22,18,14,.55);border-radius:3px;padding:12px 16px;margin-top:12px;font-size:.92rem}
+.topic .why b{color:var(--sign-red-deep)}
 
-/* interview Q */
-.iq{background:#151611;border-radius:14px;padding:20px 24px;margin:18px 0;color:#eaf2fb}
-.iq .iq-label{font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--caramel);font-weight:800;margin-bottom:8px}
-.iq p.q{font-weight:700;font-size:1rem;margin-bottom:10px}
-.iq p.a{color:#dce6ee;font-size:.92rem}
+/* interview Q — neon sign after dark */
+.iq{background:#1A1420;border:3px solid var(--ink);border-radius:6px;padding:20px 24px;margin:20px 0;color:#F6EEDF;box-shadow:5px 5px 0 var(--sign-red)}
+.iq .iq-label{display:inline-block;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--neon-pink);font-weight:900;margin-bottom:10px;text-shadow:0 0 6px rgba(255,62,138,.8),0 0 14px rgba(255,62,138,.5);border:1.5px solid var(--neon-pink);padding:2px 8px;border-radius:3px;box-shadow:0 0 8px rgba(255,62,138,.45)}
+.iq p.q{font-weight:800;font-size:1rem;margin-bottom:10px;color:var(--sign-yellow)}
+.iq p.a{color:#E9DFCF;font-size:.92rem}
 .iq p.a:last-child{margin-bottom:0}
+.iq code{background:rgba(255,210,31,.15);color:var(--sign-yellow);border-color:rgba(255,210,31,.3)}
 
-/* code */
-.code{position:relative;background:#1c1a14;border-radius:12px;margin:12px 0;overflow:hidden}
-.diagram-wrap{border-radius:12px;overflow:hidden;border:1px solid rgba(21,22,17,.12);margin:14px 0;background:#fff}
+/* code — CRT shop TV */
+.code{position:relative;background:#14110D;border:2px solid var(--ink);border-radius:5px;margin:12px 0;overflow:hidden}
+.diagram-wrap{border-radius:4px;overflow:hidden;border:2px solid var(--ink);margin:14px 0;background:#fff}
 .diagram-wrap img{width:100%;height:auto;display:block}
-.diagram-caption{font-size:.8rem;color:var(--mute);text-align:center;padding:8px 10px;background:var(--aliceblue)}
+.diagram-caption{font-size:.8rem;color:var(--mute);text-align:center;padding:8px 10px;background:var(--shelf)}
 .code pre{margin:0;padding:16px 18px;overflow-x:auto}
-.code code{background:none;color:#fbe8d0;padding:0;font-size:.8rem;line-height:1.6;white-space:pre}
-.copy{position:absolute;top:8px;right:8px;font-size:.66rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#fbe8d0;background:rgba(246,188,124,.25);border:1px solid rgba(246,188,124,.35);padding:4px 10px;border-radius:6px;cursor:pointer}
-.copy:hover{background:var(--caramel);color:#151611}
-.copy.done{background:#7bc47f;color:#fff;border-color:#7bc47f}
+.code code{background:none;border:none;color:#FFE7A8;padding:0;font-size:.8rem;line-height:1.6;white-space:pre}
+.copy{position:absolute;top:8px;right:8px;font-size:.64rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:var(--sign-yellow);border:2px solid var(--ink);padding:3px 9px;border-radius:2px;cursor:pointer}
+.copy:hover{background:var(--sign-red);color:#fff}
+.copy.done{background:#1F8A4C;color:#fff}
 
 /* checklist */
 .checklist{list-style:none;margin:10px 0}
-.checklist li{padding:5px 0 5px 26px;position:relative;font-size:.93rem;color:#2a2a28}
-.checklist li::before{content:"✓";position:absolute;left:0;color:var(--caramel);font-weight:800;background:#151611;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.7rem;top:6px}
+.checklist li{padding:5px 0 5px 28px;position:relative;font-size:.93rem;color:#241E18}
+.checklist li::before{content:"✓";position:absolute;left:0;color:#fff;font-weight:900;background:var(--sign-red);border:1.5px solid var(--ink);border-radius:2px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.7rem;top:6px}
 
-table{border-collapse:collapse;width:100%;margin:10px 0;font-size:.88rem}
-th{background:var(--caramel);color:#151611;text-align:left;padding:8px 12px;font-weight:800}
-td{padding:8px 12px;border-top:1px solid #f0dcc0}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.88rem;border:2px solid var(--ink)}
+th{background:var(--ink);color:var(--sign-yellow);text-align:left;padding:8px 12px;font-weight:800;letter-spacing:.02em}
+td{padding:8px 12px;border-top:1px solid #E6D9BF}
+tr:nth-child(odd) td{background:rgba(255,210,31,.07)}
 
 /* architecture diagram */
-.arch-section{background:#fff;border-radius:18px;padding:28px 30px;margin-bottom:32px;border:2px solid rgba(21,22,17,.08)}
-.arch-section h2{font-size:1.3rem;font-weight:800;margin-bottom:4px;color:#151611}
+.arch-section{background:var(--paper);border-radius:6px;padding:28px 30px;margin-bottom:32px;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
+.arch-section h2{font-family:'Dela Gothic One','M PLUS Rounded 1c',sans-serif;font-weight:400;font-size:1.3rem;margin-bottom:4px;color:var(--sign-red)}
 .arch-section p.sub{color:var(--mute);font-size:.9rem;margin-bottom:20px}
-.arch-svg-wrap{overflow-x:auto;border-radius:12px;background:var(--aliceblue);padding:10px}
+.arch-svg-wrap{overflow-x:auto;border-radius:4px;background:var(--shelf);padding:10px;border:2px dashed rgba(22,18,14,.3)}
 .arch-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;font-size:.8rem}
-.arch-legend .li{display:flex;align-items:center;gap:6px;color:#2a2a28}
-.arch-legend .sw{width:12px;height:12px;border-radius:3px;flex:none}
+.arch-legend .li{display:flex;align-items:center;gap:6px;color:#241E18}
+.arch-legend .sw{width:12px;height:12px;border-radius:2px;flex:none;border:1px solid var(--ink)}
 
 /* command reference */
-.cmd-cat{margin-bottom:12px;background:#fff;border-radius:12px;padding:4px 16px;border:1px solid rgba(21,22,17,.08)}
-.cmd-cat summary{list-style:none;cursor:pointer;padding:12px 0;font-size:.95rem;font-weight:800;color:var(--onyx);display:flex;align-items:center;gap:10px;user-select:none}
+.cmd-cat{margin-bottom:12px;background:var(--paper);border-radius:4px;padding:4px 16px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.cmd-cat summary{list-style:none;cursor:pointer;padding:12px 0;font-size:.95rem;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:10px;user-select:none}
 .cmd-cat summary::-webkit-details-marker{display:none}
-.cmd-cat summary::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--caramel);flex:none}
-.cmd-cat summary::after{content:"▸";margin-left:auto;font-size:.85rem;color:var(--mute);transition:transform .15s}
+.cmd-cat summary::before{content:"";width:9px;height:9px;background:var(--sign-red);border:1.5px solid var(--ink);transform:rotate(45deg);flex:none}
+.cmd-cat summary::after{content:"▸";margin-left:auto;font-size:.85rem;color:var(--sign-red);transition:transform .15s}
 .cmd-cat[open] summary::after{transform:rotate(90deg)}
-.cmd-cat summary:hover{color:var(--caramel)}
+.cmd-cat summary:hover{color:var(--sign-red)}
 .cmd-cat .cmd-row:first-of-type{margin-top:4px}
 .cmd-cat .cmd-row:last-of-type{margin-bottom:16px}
-.cmd-cat h4{font-size:.95rem;font-weight:800;color:var(--onyx);margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.cmd-cat h4::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--caramel)}
-.cmd-row{background:#fff;border-radius:10px;padding:12px 16px;margin-bottom:8px;border-left:4px solid var(--caramel)}
-.cmd-row code.cmdline{display:block;background:#1c1a14;color:#fbe8d0;padding:8px 12px;border-radius:7px;font-size:.8rem;margin-bottom:6px;overflow-x:auto;white-space:pre}
-.cmd-row p{color:#2a2a28;font-size:.87rem}
+.cmd-cat h4{font-size:.95rem;font-weight:900;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.cmd-cat h4::before{content:"";width:9px;height:9px;background:var(--sign-yellow);border:1.5px solid var(--ink);transform:rotate(45deg)}
+.cmd-row{background:#fff;border-radius:3px;padding:12px 16px;margin-bottom:8px;border:1.5px solid rgba(22,18,14,.25);border-left:5px solid var(--sign-red)}
+.cmd-row code.cmdline{display:block;background:#14110D;border:none;color:#FFE7A8;padding:8px 12px;border-radius:3px;font-size:.8rem;margin-bottom:6px;overflow-x:auto;white-space:pre}
+.cmd-row p{color:#241E18;font-size:.87rem}
 
-footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:.85rem;border-top:2px solid rgba(21,22,17,.1);max-width:1100px;margin:0 auto}
-footer b{color:var(--onyx)}
+footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:.85rem;border-top:3px solid var(--ink);max-width:1100px;margin:0 auto}
+footer b{color:var(--sign-red)}
 
-/* dbt sessions — soft sage palette, low contrast, easy to spot */
-.session.dbt{--sage:#C9D9C6;--sage-deep:#8FA98B;--sage-pale:#F2F6F0;--sage-ink:#2F3B31;--rose:#E3CFCB;--rose-ink:#6A4742}
-.session.dbt .session-head{background:linear-gradient(120deg,var(--sage),#E6EEE3)}
-.session.dbt .session-head h2{color:var(--sage-ink)}
-.session.dbt .session-head .date{color:var(--sage-ink);background:rgba(255,255,255,.6)}
-.session.dbt .topic{border-left-color:var(--sage);background:#FCFDFB}
-.session.dbt .topic.error{border-left-color:var(--rose)}
-.session.dbt .topic p,.session.dbt .topic h3{color:var(--sage-ink)}
-.session.dbt code{background:rgba(143,169,139,.18);color:var(--sage-ink)}
-.session.dbt .tag.decision{background:var(--sage);color:var(--sage-ink)}
-.session.dbt .tag.concept{background:#E6EEE3;color:#4A5C4C}
-.session.dbt .tag.error{background:var(--rose);color:var(--rose-ink)}
-.session.dbt .topic .why{background:var(--sage-pale);color:var(--sage-ink)}
-.session.dbt .topic .why b{color:var(--sage-ink)}
-.session.dbt th{background:#DDE8DA;color:var(--sage-ink)}
-.session.dbt td{border-top:1px solid #E4ECE1;color:var(--sage-ink)}
-.session.dbt .code{background:var(--sage-pale);border:1px solid #DDE8DA}
-.session.dbt .code code{background:none;color:#34443A}
-.session.dbt .copy{color:#4A5C4C;background:#E6EEE3;border-color:#CFDDCB}
-.session.dbt .copy:hover{background:var(--sage-deep);color:#fff}
-.session.dbt .iq{background:#E9F0E6;color:var(--sage-ink);border-left:5px solid var(--sage-deep)}
-.session.dbt .iq .iq-label{color:#5E7A5B}
+/* pixel-font accents — small labels only (shop TV / arcade signs) */
+.eyebrow,.meta-pill,nav.toc .lbl,.topic .tag,.iq .iq-label,.session-head .date,.copy{
+  font-family:'DotGothic16','Consolas',monospace;font-weight:400;
+}
+.eyebrow{font-size:.8rem;letter-spacing:.16em}
+.meta-pill{font-size:.82rem;letter-spacing:.02em}
+nav.toc .lbl{font-size:.74rem;letter-spacing:.14em}
+.topic .tag{font-size:.72rem;letter-spacing:.08em}
+.iq .iq-label{font-size:.78rem;letter-spacing:.14em}
+.session-head .date{font-size:.84rem}
+.copy{font-size:.72rem}
+
+/* dbt sessions — "matcha shop": same signboard style, softer greens, low contrast, easy to spot */
+.session.dbt{--matcha:#9DB894;--matcha-deep:#5F7F57;--matcha-pale:#F4F7EE;--matcha-ink:#2C3A2C;--sakura:#EBC9C6;--sakura-ink:#7A3F3A;--kraft:#E9DDBF}
+.session.dbt .session-head{background:#7C9A72;border-color:#3D4F3B;box-shadow:6px 6px 0 #3D4F3B}
+.session.dbt .session-head::before{background:repeating-linear-gradient(90deg,#F4F7EE 0 6px,transparent 6px 12px);opacity:.7}
+.session.dbt .session-head h2{color:#FBFDF7;text-shadow:2px 2px 0 #3D4F3B}
+.session.dbt .session-head h2 code{background:var(--matcha-pale);color:var(--matcha-ink)}
+.session.dbt .session-head .date{color:var(--matcha-ink);background:var(--kraft);border-color:#3D4F3B}
+.session.dbt .topic{background:#FBFCF8;border-color:#4A5C48;border-left-color:var(--matcha);box-shadow:4px 4px 0 rgba(61,79,59,.45)}
+.session.dbt .topic.error{border-left-color:var(--sakura)}
+.session.dbt .topic p,.session.dbt .topic h3{color:var(--matcha-ink)}
+.session.dbt code{background:rgba(157,184,148,.22);color:var(--matcha-ink);border-color:rgba(61,79,59,.2)}
+.session.dbt .tag{border-color:#4A5C48}
+.session.dbt .tag.decision{background:var(--matcha);color:#fff}
+.session.dbt .tag.concept{background:var(--kraft);color:var(--matcha-ink)}
+.session.dbt .tag.error{background:var(--sakura);color:var(--sakura-ink)}
+.session.dbt .topic .why{background:var(--matcha-pale);border-color:rgba(61,79,59,.4);color:var(--matcha-ink)}
+.session.dbt .topic .why b{color:var(--matcha-deep)}
+.session.dbt table{border-color:#4A5C48}
+.session.dbt th{background:#DCE7D6;color:var(--matcha-ink)}
+.session.dbt td{border-top:1px solid #E3EADD;color:var(--matcha-ink)}
+.session.dbt tr:nth-child(odd) td{background:rgba(157,184,148,.08)}
+.session.dbt .code{background:var(--matcha-pale);border:1.5px solid #CFDCC8}
+.session.dbt .code code{background:none;color:#33433A}
+.session.dbt .copy{color:var(--matcha-ink);background:var(--kraft);border-color:#4A5C48}
+.session.dbt .copy:hover{background:var(--matcha-deep);color:#fff}
+.session.dbt .iq{background:#EEF3E8;color:var(--matcha-ink);border:2px solid #4A5C48;box-shadow:5px 5px 0 var(--matcha)}
+.session.dbt .iq .iq-label{color:var(--matcha-deep);text-shadow:none;border-color:var(--matcha-deep);box-shadow:none}
+.session.dbt .iq p.q{color:var(--matcha-ink)}
 .session.dbt .iq p.a{color:#3E4D40}
-nav.toc a.dbt .dot{background:#8FA98B}
-nav.toc a.dbt{color:#5E7A5B}
+.session.dbt .iq code{background:rgba(157,184,148,.22);color:var(--matcha-ink)}
+nav.toc a.dbt .dot{background:#9DB894;border-color:#3D4F3B}
+nav.toc a.dbt{color:#4F6B4A}
 
 @media(max-width:820px){
-  .wrap{grid-template-columns:1fr;gap:20px}
-  nav.toc{position:static}
+  .wrap{grid-template-columns:minmax(0,1fr);gap:20px;padding:24px 16px 80px}
+  .wrap>*{min-width:0}
+  table{display:block;overflow-x:auto}
+  .topic{padding:18px 16px}
+  p code,li code,h3 code,.why code{overflow-wrap:anywhere}
+  td code{white-space:nowrap}
+  nav.toc{position:static;max-height:none}
+  header.hero{padding:56px 16px 28px}
+  header.hero::after{display:none}
+  header.hero h1,.meta-row{max-width:none}
+  .searchbar{padding:10px 16px}
 }
 </style></head>
 <body>
@@ -164,11 +258,11 @@ nav.toc a.dbt{color:#5E7A5B}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 11</span>
+    <span class="meta-pill">Sessions: 12</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE started (episode_features, 12 tests, PASS=37)</span>
   </div>
 </header>
 
@@ -445,6 +539,19 @@ nav.toc a.dbt{color:#5E7A5B}
     <a class="dbt" href="#why-tests"><span class="dot"></span>Why test at all</a>
     <a class="dbt" href="#first-pr"><span class="dot"></span>First pull request</a>
     <a class="dbt" href="#session11-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session12"><span class="dot"></span>Session 12 — FEATURE_STORE begins</a>
+    <a class="dbt" href="#git-after-pr1"><span class="dot"></span>Git after PR #1</a>
+    <a class="dbt" href="#schema-macro"><span class="dot"></span>generate_schema_name</a>
+    <a class="dbt" href="#data-leakage"><span class="dot"></span>Data leakage</a>
+    <a class="dbt" href="#episode-features-model"><span class="dot"></span>episode_features model</a>
+    <a class="dbt" href="#age-bug"><span class="dot"></span>Age bug (46.7%)</a>
+    <a class="dbt" href="#prior-episodes"><span class="dot"></span>prior_episodes</a>
+    <a class="dbt" href="#feature-findings"><span class="dot"></span>Data findings</a>
+    <a class="dbt" href="#leakage-check"><span class="dot"></span>Leakage check</a>
+    <a class="dbt" href="#feature-tests"><span class="dot"></span>Tests: PASS=37</a>
+    <a class="dbt" href="#session12-errors"><span class="dot"></span>Errors</a>
+    <a class="dbt" href="#session12-doubts"><span class="dot"></span>Quick doubts</a>
+    <a class="dbt" href="#session12-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -3693,6 +3800,288 @@ git fetch --prune            # after "Delete branch" on GitHub: drops origin/cor
           <tr><td>FEATURE_STORE layer</td><td>New branch; override <code>generate_schema_name</code> first so models land in <code>FEATURE_STORE</code>, not <code>CORE_FEATURE_STORE</code>; features per eligible episode (prior admissions, length of stay, conditions, medications)</td></tr>
           <tr><td>Optional tidy</td><td>Lowercase column/CTE names in <code>inpatient_episodes.sql</code>; alias <code>count(*) AS eligible_count</code> in the count test</td></tr>
           <tr><td>Still open</td><td>pytest for <code>transform_table.py</code> + GitHub Actions CI; <code>repartition(8)</code> experiment</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session12">
+      <div class="session-head">
+        <h2>Session 12 — FEATURE_STORE Begins: <code>episode_features</code>, Leakage, and 12 New Tests</h2>
+        <span class="date">Oct 7 (end), 11 &amp; 14, 2026</span>
+      </div>
+
+      <div class="topic decision" id="git-after-pr1">
+        <h3><span class="tag decision">Done</span> After PR #1 — what happened in git, and the new branch (end of Oct 7)</h3>
+        <p>Asked: <i>"what have we done here with git? I didn't understand."</i> The key idea: there are <b>two copies</b>
+        of the repo — <b>local</b> (my laptop) and <b>remote</b> (GitHub, called <code>origin</code>). They only change when
+        I move commits between them.</p>
+        <table>
+          <tr><th>Step</th><th>Command / place</th><th>What it did</th></tr>
+          <tr><td>1</td><td>GitHub: merge PR #1</td><td>Merge commit <code>b142c2d</code> created on the <b>remote</b> master only</td></tr>
+          <tr><td>2</td><td><code>git checkout master</code> + <code>git pull</code></td><td>Copied <code>b142c2d</code> down to <b>local</b> master ("Fast-forward": local master had nothing new of its own)</td></tr>
+          <tr><td>3</td><td><code>git branch -d core-layer</code> + <code>git fetch --prune</code></td><td>Removed the finished branch locally and the stale <code>origin/core-layer</code> reference</td></tr>
+          <tr><td>4</td><td>commit + push on master</td><td>Session 11 notes → <code>df480ec</code></td></tr>
+          <tr><td>5</td><td><code>git checkout -b feature-store-layer</code></td><td>New branch starting from the up-to-date master — each layer gets its own branch and PR</td></tr>
+          <tr><td>6</td><td>macro + <code>dbt_project.yml</code> config → commit</td><td><code>b08d9ce</code></td></tr>
+          <tr><td>7</td><td><code>git push -u origin feature-store-layer</code></td><td>Creates the branch on GitHub; <code>-u</code> links local ↔ remote so later it's just <code>git push</code> / <code>git pull</code></td></tr>
+        </table>
+        <div class="why"><b>Caught by a count:</b> the first <code>dbt build</code> on the new branch still said
+        <b>562 macros</b> — <code>Get-ChildItem macros</code> showed the macro file had never been created. After creating it:
+        563. Predicting the "Found …" line catches a missing file before it causes a confusing error.
+        <br><b><code>dbt_project.yml</code></b> lives in <code>C:\dev\carepulse\carepulse_dbt\</code> (the dbt project root), not the repo root.</div>
+      </div>
+
+      <div class="topic decision" id="schema-macro">
+        <h3><span class="tag decision">Decision</span> Override <code>generate_schema_name</code> — clean layer schemas</h3>
+        <p>By default dbt <b>joins</b> the target schema and a model's custom schema: <code>CORE</code> + <code>_</code> +
+        <code>feature_store</code> → <code>CORE_FEATURE_STORE</code>. That suits teams where each developer has their own
+        schema; CarePulse wants real layers (<code>CORE</code>, <code>FEATURE_STORE</code>, later <code>MART</code>). A macro
+        with the <b>same name</b> as dbt's built-in one replaces it.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>-- macros/generate_schema_name.sql
+{% macro generate_schema_name(custom_schema_name, node) -%}
+    {%- if custom_schema_name is none -%}
+        {{ target.schema }}                      -- no +schema → CORE (from profiles.yml)
+    {%- else -%}
+        {{ custom_schema_name | trim | upper }}  -- +schema: feature_store → FEATURE_STORE
+    {%- endif -%}
+{%- endmacro %}
+
+# dbt_project.yml
+models:
+  carepulse_dbt:
+    +materialized: table
+    feature_store:
+      +schema: feature_store</code></pre></div>
+        <table>
+          <tr><th>Signal</th><th>Meaning</th></tr>
+          <tr><td>Macro count 562 → <b>563</b></td><td>dbt picked up the new file (at first it stayed 562 — the file had never been created)</td></tr>
+          <tr><td>Warning "unused configuration paths: feature_store"</td><td>Expected until the first model exists in that folder; disappeared with <code>episode_features</code></td></tr>
+          <tr><td>Log line <code>FEATURE_STORE.episode_features</code></td><td>Proof the override works</td></tr>
+        </table>
+        <div class="why"><b>The <code>-</code> in <code>{%-</code> / <code>-%}</code></b> strips whitespace and newlines around a tag;
+        without it the schema name could come out as <code>"\n    CORE\n"</code>.</div>
+      </div>
+
+      <div class="topic" id="data-leakage">
+        <h3><span class="tag concept">Concept</span> Data leakage — the one rule of the feature layer</h3>
+        <p>The model is used <b>at discharge</b>: "how likely is this patient to be back within 30 days?" So
+        <b>every feature may use only information that exists at discharge time.</b> Leakage = a feature carrying
+        information from after that moment. Training accuracy looks brilliant (the model is reading the answer); in
+        production that information doesn't exist and the model collapses.</p>
+        <table>
+          <tr><th>Column in <code>inpatient_episodes</code></th><th>Why it must not be a feature</th></tr>
+          <tr><td><code>next_admission_at</code></td><td>It <i>is</i> the future — non-null means a readmission happened</td></tr>
+          <tr><td><code>days_to_next_admission</code></td><td>The label in disguise</td></tr>
+          <tr><td><code>death_date</code></td><td>The death may be months after discharge</td></tr>
+        </table>
+        <div class="why"><b>Two quieter traps.</b> (1) <b>History counts:</b> "prior admissions" must count only episodes
+        that started <i>before</i> this one. (2) <b>Compute over all episodes, then filter to eligible:</b> an excluded
+        episode (hospice, say) still happened and is still history for the patient's later episodes.</div>
+      </div>
+
+      <div class="topic decision" id="episode-features-model">
+        <h3><span class="tag decision">Verified</span> <code>feature_store.episode_features</code> — built in three small steps</h3>
+        <table>
+          <tr><th>Step</th><th>Added</th><th>Run</th><th>Checks</th></tr>
+          <tr><td>1</td><td>Eligible episodes only (<code>is_eligible_index = TRUE</code>), pass-through columns</td><td>SUCCESS 51,925</td><td>4 models · warning gone · <code>FEATURE_STORE.</code> · 51,925</td></tr>
+          <tr><td>2</td><td>Join <code>ref('patients')</code>: <code>gender</code>, <code>age_at_admission</code></td><td>SUCCESS 51,925</td><td>age min 0 · max 110 · no nulls</td></tr>
+          <tr><td>3</td><td><code>length_of_stay_days</code>, <code>prior_episodes</code></td><td>SUCCESS 51,925</td><td>LOS 1–233 · prior 0–64 · leakage check 0</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>WITH episode AS (
+    SELECT episode_id, patient_id, admitted_at, discharged_at,
+           stay_in_episode, readmitted_30d, episode_number
+    FROM {{ ref('inpatient_episodes') }}
+    WHERE is_eligible_index = TRUE
+),
+with_demographics AS (
+    SELECT
+        e.episode_id, e.patient_id, e.admitted_at, e.discharged_at,
+        e.stay_in_episode, e.readmitted_30d,
+        p.gender,
+        DATEDIFF(year, p.birth_date, e.admitted_at::DATE)
+          - IFF(TO_VARCHAR(e.admitted_at::DATE, 'MM-DD') &lt; TO_VARCHAR(p.birth_date, 'MM-DD'), 1, 0)
+          AS age_at_admission,
+        DATEDIFF(day, e.admitted_at::DATE, e.discharged_at::DATE) AS length_of_stay_days,
+        e.episode_number - 1 AS prior_episodes
+    FROM {{ ref('patients') }} p
+    INNER JOIN episode e ON e.patient_id = p.patient_id
+)
+SELECT * FROM with_demographics</code></pre></div>
+        <div class="why"><b>Not in the output:</b> <code>next_admission_at</code>, <code>days_to_next_admission</code>,
+        <code>death_date</code>, <code>died_in_episode</code>. <code>readmitted_30d</code> stays as the <b>label</b>, not a
+        feature. Review notes still open: rename <code>with_demographics</code> (it now holds more than demographics);
+        <code>FROM episode e JOIN patients p</code> reads more naturally (start from the table that defines the grain).</div>
+      </div>
+
+      <div class="topic error" id="age-bug">
+        <h3><span class="tag error">Bug caught</span> Age was one year too old for 46.7% of episodes</h3>
+        <p><b>Bug 1 — argument order.</b> <code>DATEDIFF(year, admitted_at, birth_date)</code> gave negative ages; the min/max
+        check caught it. Rule: <code>DATEDIFF(unit, earlier, later)</code>.</p>
+        <p><b>Bug 2 — the year boundary.</b> <code>DATEDIFF(year, …)</code> only subtracts the year numbers. It ignores whether
+        the birthday has happened yet. The min/max check <i>cannot</i> catch this: 30 instead of 29 looks normal.</p>
+        <table>
+          <tr><th>birth_date</th><th>admitted_at</th><th>Real age</th><th><code>DATEDIFF(year)</code></th><th>Fixed formula</th></tr>
+          <tr><td>1990-12-31</td><td>2020-01-01</td><td>29</td><td>30 ✗</td><td>29 ✓</td></tr>
+          <tr><td>1990-01-01</td><td>2020-12-31</td><td>30</td><td>30</td><td>30 ✓</td></tr>
+          <tr><td>1990-06-15</td><td>2020-06-14</td><td>29</td><td>30 ✗</td><td>29 ✓</td></tr>
+          <tr><td>1990-06-15</td><td>2020-06-15 (birthday)</td><td>30</td><td>30</td><td>30 ✓</td></tr>
+        </table>
+        <p><b>Fix (Option B — exact):</b> years, minus 1 if the admission's <code>'MM-DD'</code> is <code>&lt;</code> the
+        birth <code>'MM-DD'</code>. On the birthday itself the strings are equal → not less → no subtraction (the
+        "what happens at equality?" question again).</p>
+        <p><b>Measured impact:</b> grouping by the correction flag → <b>24,261</b> rows corrected + 27,664 unchanged =
+        51,925. <b>24,261 / 51,925 = 46.7%</b> (a little under the ~50% I expected; the reason is not known — it doesn't
+        affect correctness).</p>
+        <div class="why"><b>Why comparing text works:</b> strings compare character by character (lexicographic). With a
+        <b>fixed-width, zero-padded</b> format whose most significant part comes first, text order = date order. Without
+        padding it breaks: <code>'12-31' &lt; '6-15'</code> because <code>'1' &lt; '6'</code> — December before June. Same reason
+        <code>YYYY-MM-DD</code> strings sort correctly and <code>DD/MM/YYYY</code> don't.</div>
+      </div>
+
+      <div class="topic" id="prior-episodes">
+        <h3><span class="tag concept">Doubts answered</span> <code>prior_episodes</code> and first episodes</h3>
+        <table>
+          <tr><th>episode_id</th><th>episode_number</th><th>admitted_at</th><th>prior_episodes</th></tr>
+          <tr><td>…-1</td><td>1</td><td>1958-06-04</td><td>0</td></tr>
+          <tr><td>…-2</td><td>2</td><td>1996-01-14</td><td>1</td></tr>
+        </table>
+        <p><code>prior_episodes = episode_number − 1</code> — no new window function needed. <code>episode_number</code> was
+        computed over <b>all</b> episodes before the eligibility filter, so excluded episodes still count as history
+        (counting rows <i>inside</i> <code>episode_features</code> would get this wrong).</p>
+        <p><b>Should first episodes (prior = 0) be excluded? No.</b> 0 is information, not missing data. The model must work
+        for first-time patients; dropping them would remove a large share of rows, bias the label, and remove the very
+        contrast that makes the feature useful. Rows are dropped only when they don't belong to the population — which
+        <code>is_eligible_index</code> already did.</p>
+        <div class="why"><b>Limitation seen in the example:</b> a 38-year gap (1958 → 1996) still reads as "1 prior", the
+        same as a readmission last month. Next feature: <b>episodes in the 365 days before admission</b>.</div>
+      </div>
+
+      <div class="topic decision" id="feature-findings">
+        <h3><span class="tag decision">Findings</span> What the checks showed about the data</h3>
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Meaning</th></tr>
+          <tr><td>min / max <code>length_of_stay_days</code></td><td>1 / 233</td><td>Expected same-day stays → 0; there are none. Confirmed: shortest eligible episode ≈ 24 h (<code>DATEDIFF(hour)</code> min = 24). Likely how Synthea models inpatient stays.</td></tr>
+          <tr><td>min / max <code>prior_episodes</code></td><td>0 / 64</td><td>Fits the 66-episode patient: their last episode(s) weren't eligible, highest eligible is #65</td></tr>
+          <tr><td><code>prior_episodes = 0</code> rows</td><td>19,644 — all with <code>episode_id</code> ending <code>-1</code></td><td>0 violations (<code>NOT LIKE '%-1'</code> → 0 rows)</td></tr>
+          <tr><td>Readmitted among first episodes</td><td><b>390 / 19,644 = 2.0%</b></td><td>vs <b>16.3%</b> overall → <code>prior_episodes</code> will be a strong feature</td></tr>
+        </table>
+        <div class="why">Habit: write down "assumed X, data showed Y" — e.g. "assumed LOS could be 0; every eligible stay
+        lasts ≥ ~24 h".</div>
+      </div>
+
+      <div class="topic decision" id="leakage-check">
+        <h3><span class="tag decision">Verified</span> The leakage check — verify a feature by a second, independent method</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT f.episode_id, f.prior_episodes,
+       COUNT(i.episode_id) AS earlier_episodes_counted
+FROM {{ ref('episode_features') }} f
+LEFT JOIN {{ ref('inpatient_episodes') }} i
+       ON i.patient_id  = f.patient_id
+      AND i.admitted_at &lt; f.admitted_at      -- the leakage rule, in SQL
+GROUP BY f.episode_id, f.prior_episodes
+HAVING COUNT(i.episode_id) &lt;&gt; f.prior_episodes   -- expected: 0 rows</code></pre></div>
+        <table>
+          <tr><th>Experiment</th><th>Rows</th><th>Why</th></tr>
+          <tr><td>As written</td><td><b>0</b></td><td>Feature matches an independent join-and-count for every row ✓</td></tr>
+          <tr><td><code>COUNT(*)</code> instead of <code>COUNT(i.episode_id)</code></td><td>19,644</td><td>A first episode's LEFT JOIN gives one all-NULL row; <code>COUNT(*)</code> counts rows → 1 ≠ 0. <code>COUNT(col)</code> counts non-null values → 0.</td></tr>
+          <tr><td>Inner <code>JOIN</code> instead of <code>LEFT JOIN</code></td><td>0</td><td><b>Same result, blind check:</b> first episodes vanish before HAVING. A first episode wrongly set to 5 would pass.</td></tr>
+        </table>
+        <div class="why"><b>Lesson:</b> a check that passes because it skipped the rows it should test is worse than no
+        check — it gives false confidence. Always ask: "which rows does my check actually look at?"</div>
+      </div>
+
+      <div class="topic decision" id="feature-tests">
+        <h3><span class="tag decision">Verified</span> 12 tests on the feature model — <code>dbt build</code> → <code>PASS=37</code></h3>
+        <table>
+          <tr><th>File</th><th>Tests</th></tr>
+          <tr><td><code>models/feature_store/_models.yml</code> (new file, one YAML per folder)</td><td><code>episode_id</code> not_null + unique · <code>patient_id</code> not_null + relationships → <code>patients</code> · not_null on gender, age, LOS, prior, label → <b>9</b></td></tr>
+          <tr><td><code>tests/feature_store/features_prior_episodes_match.sql</code></td><td>The leakage check above</td></tr>
+          <tr><td><code>tests/feature_store/features_valid_ranges.sql</code></td><td>age &lt; 0 OR age &gt; 120 OR LOS &lt; 0 OR prior &lt; 0</td></tr>
+          <tr><td><code>tests/feature_store/features_row_count.sql</code></td><td><code>COUNT(*) AS row_count … HAVING row_count &lt;&gt; 51925</code></td></tr>
+        </table>
+        <p>Predicted and got: <code>Found 4 models, 33 data tests</code> (21 + 9 + 3) → <b>PASS=37</b>. Build order shows the
+        DAG: <code>episode_features</code> started only after every <code>inpatient_episodes</code> test passed, and
+        <code>features_prior_episodes_match</code> waited for <b>both</b> models it <code>ref()</code>s.</p>
+        <div class="why"><b>Bug in the first draft of <code>features_valid_ranges</code>:</b> all conditions joined with
+        <code>AND</code> → <code>age &lt; 0 AND age &gt; 120</code> is impossible → the test <b>could never fail</b>. A second
+        draft still caught a row only if age, LOS and prior were <i>all</i> broken. Any one bad value must flag the row →
+        all <code>OR</code>. Ask of every test: "can I imagine a row that would make this fail?"
+        <br><b>Note:</b> Snowflake accepts a SELECT alias in <code>HAVING</code>; Postgres/SQL Server need
+        <code>HAVING COUNT(*) &lt;&gt; 51925</code>.</div>
+      </div>
+
+      <div class="topic error" id="session12-errors">
+        <h3><span class="tag error">Errors</span> Smaller mistakes this session</h3>
+        <table>
+          <tr><th>Error</th><th>Cause → fix</th></tr>
+          <tr><td>"selection criterion 'episode_features' does not match any enabled nodes" (but "Found 4 models")</td><td>File name ≠ model name — in dbt the file name <i>is</i> the model name → renamed the file</td></tr>
+          <tr><td><code>invalid identifier 'ADMISSION_AT'</code></td><td>Column is <code>admitted_at</code>; Snowflake stops at the first bad name, so check them all</td></tr>
+          <tr><td><code>ON episode.patient_id = …</code> inside the CTE called <code>episode</code></td><td>A CTE can't refer to itself → alias the source table (<code>e</code>)</td></tr>
+          <tr><td><code>patient_id</code> in both joined tables</td><td>Ambiguous column → prefix every column with its alias</td></tr>
+          <tr><td>Second <code>WITH</code> before the second CTE</td><td>One <code>WITH</code> per query; CTEs separated by commas only</td></tr>
+          <tr><td><code>p.age_at_admission</code></td><td>Age isn't stored — it's calculated from <code>birth_date</code></td></tr>
+          <tr><td>Model SQL run in a Snowflake worksheet → <code>'INPATIENT_EPISODES' does not exist</code>; later <code>invalid identifier 'P.BIRTH_DATE'</code></td><td><code>{{ ref() }}</code> is Jinja — only dbt resolves it. A bare <code>patients</code> found a <b>different</b> table (likely <code>RAW.PATIENTS</code>, column <code>BIRTHDATE</code>). Models are built only with <code>dbt run/build</code>; the worksheet is for reading. Compiled SQL: <code>target/compiled/…</code></td></tr>
+          <tr><td><code>CAREPULSE_DB.CORE.EPISODE_FEATURES</code> does not exist</td><td>It lives in <code>FEATURE_STORE</code> now — that's what the macro did</td></tr>
+          <tr><td><code>[E.ADMITTED_AT] is not a valid group by expression</code></td><td><code>COUNT(*)</code> next to a per-row <code>IFF</code> → aggregate it (<code>SUM</code>/<code>COUNT_IF</code>) or <code>GROUP BY</code> it</td></tr>
+          <tr><td>Alias <code>age_at_admission</code> used in <code>GROUP BY</code></td><td>Same name as a real column → Snowflake groups by the <b>column</b>. Renamed the alias <code>birthday_not_reached</code></td></tr>
+          <tr><td><code>FROM ref('episode_features')</code></td><td>Missing <code>{{ }}</code> → Snowflake sees a function called REF</td></tr>
+          <tr><td><code>prior_episodes = '0'</code></td><td>Number column — compare with the number <code>0</code>, not text</td></tr>
+          <tr><td>Stray <code>\</code> at the end of a test file</td><td>Syntax error → deleted</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="session12-doubts">
+        <h3><span class="tag concept">Doubts answered</span> Quick ones</h3>
+        <table>
+          <tr><th>Doubt</th><th>Answer</th></tr>
+          <tr><td>How does dbt tell tests from tables?</td><td>By <b>folder</b>: <code>model-paths: ["models"]</code> are built as tables; <code>test-paths: ["tests"]</code> run as SELECTs (rows returned = FAIL). <code>dbt run</code> = models, <code>dbt test</code> = tests, <code>dbt build</code> = both in dependency order.</td></tr>
+          <tr><td>Where is the CTE <code>with_demographics</code> stored?</td><td>Nowhere. A CTE lives only while the query runs. One file = one model = <b>one table</b> (<code>FEATURE_STORE.EPISODE_FEATURES</code>).</td></tr>
+          <tr><td>Remove <code>::DATE</code> from both columns?</td><td>Only from <code>birth_date</code> (already a DATE). Keep it on the timestamp <code>admitted_at</code> — it states the intent. Cast when types differ.</td></tr>
+          <tr><td>New YAML file for the feature model?</td><td>Not required (dbt reads every <code>.yml</code> under <code>models/</code>) but conventional: one <code>_models.yml</code> per folder, next to its models.</td></tr>
+          <tr><td>Two <code>tests</code> folders?</td><td><code>carepulse_dbt/tests/</code> = dbt singular tests. Repo-root <code>tests/</code> = Python/pytest. A SQL file in the root one is silently ignored.</td></tr>
+          <tr><td>Are Terraform state files in git?</td><td><code>git ls-files infra</code> → only <code>main.tf</code> + <code>.terraform.lock.hcl</code> ✓. State and plan can hold secrets — never commit them. The lock file is meant to be committed (pins provider versions).</td></tr>
+        </table>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What is data leakage and how did you prevent it?</p>
+        <p class="a">Leakage is when a feature contains information that wouldn't exist at prediction time. My model
+        predicts at discharge, so every feature must be point-in-time correct. Concretely: the next-admission columns in
+        my episodes table are excluded from features because they are the label in disguise; prior utilisation counts only
+        episodes that started before the current admission; and I compute history over all episodes before filtering to
+        the training population, so excluded stays still count. Then I verify it: a dbt test recomputes prior episodes
+        independently with a join on earlier admissions and fails if any row disagrees.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Give an example of a bug that range checks can't catch.</p>
+        <p class="a">Age at admission. DATEDIFF by year just subtracts the year numbers, so anyone whose birthday hadn't
+        happened yet that year was a year too old — 46.7% of my training rows. Min and max looked fine because 30 instead
+        of 29 is a normal value. I caught it by testing the boundary cases by hand — the day before and the day of a
+        birthday — and fixed it by subtracting one when the admission's month-day is earlier than the birth month-day.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you know a test is actually testing something?</p>
+        <p class="a">I ask whether I can imagine a row that would make it fail, and sometimes I break it on purpose. My
+        first range test joined conditions with AND, so "age below 0 and above 120" made it impossible to fail. And my
+        leakage check gave the same zero rows with an inner join as with a left join — but the inner join silently dropped
+        every first episode, so it couldn't catch a bug in them. A passing test that skips the rows it should check is
+        worse than no test.</p>
+      </div>
+
+      <div class="topic error" id="session12-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Commit</td><td><code>git add</code> the model folder + <code>tests/feature_store</code> (5 files) → commit → push on <code>feature-store-layer</code></td></tr>
+          <tr><td>More features</td><td>Episodes in the 365 days before admission; chronic conditions; medication counts — all point-in-time</td></tr>
+          <tr><td>Review notes</td><td>Rename <code>with_demographics</code>; optional: add checked columns to <code>features_valid_ranges</code> output; move the 4 CORE tests into <code>tests/core/</code></td></tr>
+          <tr><td>PR #2</td><td><code>feature-store-layer</code> → master once the feature set is complete</td></tr>
+          <tr><td>Still open</td><td>Column descriptions + <code>dbt docs</code>; pytest + GitHub Actions CI; <code>repartition(8)</code> experiment</td></tr>
         </table>
       </div>
 
