@@ -1,0 +1,31 @@
+version: 2
+models:
+- name: "episode_features"
+  description: "One row per inpatient episode, with features for modeling. Features include demographics (age, gender), length of stay, and number of prior episodes."
+  columns:
+    - name: "episode_id"
+      data_tests:
+        - not_null
+        - unique
+    - name: "patient_id"
+      data_tests:
+        - not_null
+        - relationships:
+            arguments:
+              to: ref('patients')
+              field: patient_id
+    - name: "gender"
+      data_tests:
+        - not_null
+    - name: "age_at_admission"
+      data_tests:
+        - not_null
+    - name: "length_of_stay_days"
+      data_tests:
+        - not_null
+    - name: "prior_episodes"
+      data_tests:
+        - not_null 
+    - name: "readmitted_30d"
+      data_tests:
+        - not_null       
