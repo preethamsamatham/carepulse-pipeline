@@ -233,6 +233,8 @@ nav.toc .lbl{font-size:.74rem;letter-spacing:.14em}
 .session.dbt .iq p.q{color:var(--matcha-ink)}
 .session.dbt .iq p.a{color:#3E4D40}
 .session.dbt .iq code{background:rgba(157,184,148,.22);color:var(--matcha-ink)}
+.session.dbt .checklist li::before{background:#7C9A72;border-color:#3D4F3B}
+.session.dbt .checklist li{color:#2C3A2C}
 nav.toc a.dbt .dot{background:#9DB894;border-color:#3D4F3B}
 nav.toc a.dbt{color:#4F6B4A}
 
@@ -258,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 12</span>
+    <span class="meta-pill">Sessions: 13</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE started (episode_features, 12 tests, PASS=37)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 7 features + label, 14 tests, PASS=39)</span>
   </div>
 </header>
 
@@ -552,6 +554,15 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#session12-errors"><span class="dot"></span>Errors</a>
     <a class="dbt" href="#session12-doubts"><span class="dot"></span>Quick doubts</a>
     <a class="dbt" href="#session12-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session13"><span class="dot"></span>Session 13 — 365-day history</a>
+    <a class="dbt" href="#window-design"><span class="dot"></span>Window boundaries + source</a>
+    <a class="dbt" href="#history-cte"><span class="dot"></span>History CTE</a>
+    <a class="dbt" href="#session13-cte-errors"><span class="dot"></span>Final SELECT drafts</a>
+    <a class="dbt" href="#session13-checks"><span class="dot"></span>Checks + NULL blind spot</a>
+    <a class="dbt" href="#rate-by-bucket"><span class="dot"></span>Rate by bucket (2.3→40.4%)</a>
+    <a class="dbt" href="#rate-query-errors"><span class="dot"></span>Bucket query errors</a>
+    <a class="dbt" href="#session13-tests"><span class="dot"></span>Tests: PASS=39</a>
+    <a class="dbt" href="#session13-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -4082,6 +4093,185 @@ HAVING COUNT(i.episode_id) &lt;&gt; f.prior_episodes   -- expected: 0 rows</code
           <tr><td>Review notes</td><td>Rename <code>with_demographics</code>; optional: add checked columns to <code>features_valid_ranges</code> output; move the 4 CORE tests into <code>tests/core/</code></td></tr>
           <tr><td>PR #2</td><td><code>feature-store-layer</code> → master once the feature set is complete</td></tr>
           <tr><td>Still open</td><td>Column descriptions + <code>dbt docs</code>; pytest + GitHub Actions CI; <code>repartition(8)</code> experiment</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session13">
+      <div class="session-head">
+        <h2>Session 13 — <code>prior_episodes_365d</code>: Recent History, Signal Check, PASS=39</h2>
+        <span class="date">Oct 15, 2026</span>
+      </div>
+
+      <div class="topic decision" id="window-design">
+        <h3><span class="tag decision">Decision</span> Designing the 365-day window — boundaries and source</h3>
+        <p><b>Why the feature:</b> <code>prior_episodes</code> treats all history the same — a 1958 stay counted like one
+        last month. Hospitals use "admissions in the last 12 months" because recent utilisation predicts readmission.</p>
+        <table>
+          <tr><th>Question</th><th>Decision</th><th>Why</th></tr>
+          <tr><td>Lower bound</td><td><code>DATEDIFF(day, earlier, this) &lt;= 365</code></td><td>Either <code>&gt;</code> or <code>&gt;=</code> at exactly 365 days is defensible — pick one and write it down</td></tr>
+          <tr><td>Upper bound</td><td><b>strict</b> <code>earlier.admitted_at &lt; this.admitted_at</code></td><td>With <code>&lt;=</code> the episode matches <b>itself</b> (same <code>admitted_at</code>) → every row ≥ 1. The current stay would leak into its own history.</td></tr>
+          <tr><td>History comes from</td><td><code>{{ ref('inpatient_episodes') }}</code> — <b>all</b> episodes</td><td>My first answer was the eligible-only <code>episode</code> CTE. Wrong: the filter decides which rows we <i>train on</i>, not which stays <i>happened</i>.</td></tr>
+        </table>
+        <table>
+          <tr><th>Patient X</th><th>Date</th><th>Eligible?</th><th>365d count for episode 2</th></tr>
+          <tr><td>Episode 1</td><td>Jan 2020</td><td>✗ hospice (excluded)</td><td rowspan="2">all episodes → <b>1</b> ✓ · eligible CTE → 0 ✗</td></tr>
+          <tr><td>Episode 2</td><td>Jun 2020</td><td>✓ training row</td></tr>
+        </table>
+        <div class="why">Same rule as <code>prior_episodes</code>: <b>compute history over everything, then filter.</b> Using the
+        eligible CTE would still pass the "365d ≤ all-time" check — but the two features would count different populations,
+        a silent inconsistency.</div>
+      </div>
+
+      <div class="topic decision" id="history-cte">
+        <h3><span class="tag decision">Verified</span> The model — a separate history CTE joined back by key</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>with_history_365 AS (
+    SELECT
+        e.episode_id,
+        COUNT(e2.episode_id) AS prior_episodes_365d     -- non-null column → 0 for no match
+    FROM episode e                                      -- rows we need counts FOR (eligible)
+    LEFT JOIN {{ ref('inpatient_episodes') }} e2        -- history: ALL episodes
+           ON e.patient_id = e2.patient_id
+          AND e2.admitted_at &lt; e.admitted_at            -- strictly earlier: no self-count
+          AND DATEDIFF(day, e2.admitted_at::DATE, e.admitted_at::DATE) &lt;= 365
+    GROUP BY e.episode_id
+)
+SELECT e.episode_id, e.patient_id, e.admitted_at, e.discharged_at, e.stay_in_episode,
+       e.readmitted_30d, e.gender, e.age_at_admission, e.length_of_stay_days, e.prior_episodes,
+       h.prior_episodes_365d
+FROM with_features e
+LEFT JOIN with_history_365 h ON e.episode_id = h.episode_id</code></pre></div>
+        <div class="why"><b>Why a separate CTE:</b> the count needs <code>GROUP BY</code>; doing it inside
+        <code>with_features</code> would mean grouping by every feature column. One row per key + one count, then join back.
+        <code>with_demographics</code> was renamed <code>with_features</code> (the old name no longer described it).
+        Open style note: the final alias <code>e</code> reuses the letter used for the <code>episode</code> CTE — <code>f</code> would read better.</div>
+      </div>
+
+      <div class="topic error" id="session13-cte-errors">
+        <h3><span class="tag error">Errors</span> Getting the final SELECT right — five drafts</h3>
+        <table>
+          <tr><th>Draft</th><th>Problem → fix</th></tr>
+          <tr><td>1</td><td>History joined to <code>episode e2</code> (eligible only) → <code>ref('inpatient_episodes')</code>. And the new CTE was never used: the final line still read <code>SELECT * FROM with_features</code>.</td></tr>
+          <tr><td>2</td><td><code>SELECT * FROM with_history_365</code> → only 2 columns; every feature lost (the <code>not_null</code> tests would have errored). Plus a trailing <code>;</code> — a syntax error inside dbt's <code>create table … as ( … )</code> wrapper.</td></tr>
+          <tr><td>3</td><td><code>SELECT *</code> over the join → <code>EPISODE_ID</code> twice → Snowflake refuses a duplicate column name. Use <code>f.*</code> + the one new column, or list columns.</td></tr>
+          <tr><td>4</td><td>Listed columns but dropped <code>age_at_admission</code>, <code>length_of_stay_days</code>, <code>prior_episodes</code> — why <code>f.*</code> exists. And <code>ON with_features.episode_id</code> after aliasing it <code>e</code> → once aliased, only the alias works.</td></tr>
+          <tr><td>5</td><td><code>ON e.episode_id = h.episode_id</code>, all 11 columns → <b>SUCCESS 51,925</b></td></tr>
+          <tr><td>—</td><td><code>dbt run</code> from <code>C:\dev\carepulse</code> → "No dbt_project.yml found". Git from <code>carepulse</code>, dbt from <code>carepulse_dbt</code>.</td></tr>
+        </table>
+        <div class="why"><b><code>COUNT(DISTINCT …)</code> "just in case":</b> the join can't produce duplicates here, so plain
+        <code>COUNT</code> gives the same number. DISTINCT would <i>hide</i> a join that accidentally duplicates rows — better to
+        know the join is clean.</div>
+      </div>
+
+      <div class="topic decision" id="session13-checks">
+        <h3><span class="tag decision">Verified</span> Checks — and the NULL blind spot</h3>
+        <table>
+          <tr><th>#</th><th>Check</th><th>Result</th></tr>
+          <tr><td>1</td><td>Row count</td><td>51,925 ✓ (join added/lost nothing)</td></tr>
+          <tr><td>2</td><td><code>prior_episodes_365d &gt; prior_episodes</code></td><td>0 rows ✓</td></tr>
+          <tr><td>3</td><td><code>prior_episodes = 0 AND prior_episodes_365d &lt;&gt; 0</code></td><td>0 rows ✓</td></tr>
+          <tr><td>4</td><td>min / max <code>prior_episodes_365d</code></td><td>0 / 13 (≤ all-time max 64 ✓) — someone admitted ~monthly</td></tr>
+          <tr><td>—</td><td><code>prior_episodes_365d IS NULL</code></td><td>0 ✓</td></tr>
+        </table>
+        <div class="why"><b>Why the NULL check was needed:</b> <code>NULL &gt; x</code> and <code>NULL &lt;&gt; 0</code> are NULL, never TRUE,
+        so checks 2 and 3 silently skip NULL rows — and <code>MIN</code>/<code>MAX</code> ignore NULLs too. The final
+        <code>LEFT JOIN</code> could produce NULLs if an episode were missing from the history CTE. Only an explicit
+        <code>IS NULL</code> count (later a <code>not_null</code> test) proves there are none.</div>
+      </div>
+
+      <div class="topic" id="rate-by-bucket">
+        <h3><span class="tag concept">Concept + finding</span> Readmission rate by bucket — is the feature useful?</h3>
+        <p>Correctness checks prove the feature is <i>right</i>; this proves it is <i>useful</i>. Split rows into groups by the
+        feature, compute the label rate per group. Rising rate = signal; flat = useless; one bucket near 100% = <b>leakage
+        alarm</b> (a feature that predicts too perfectly is usually reading the future).</p>
+        <table>
+          <tr><th>Episodes in prior 365 days</th><th>Episodes</th><th>Readmitted</th><th>Rate</th></tr>
+          <tr><td>0</td><td>30,160</td><td>702</td><td><b>2.3%</b></td></tr>
+          <tr><td>1</td><td>3,176</td><td>319</td><td><b>10.0%</b></td></tr>
+          <tr><td>2</td><td>824</td><td>247</td><td><b>30.0%</b></td></tr>
+          <tr><td>3+</td><td>17,765</td><td>7,176</td><td><b>40.4%</b></td></tr>
+          <tr><td><b>Total</b></td><td><b>51,925</b> ✓</td><td><b>8,444</b> ✓</td><td>16.3%</td></tr>
+        </table>
+        <ul class="checklist">
+          <li>Rate climbs steadily — 3+ recent stays ≈ <b>17×</b> the risk of none. Strong signal.</li>
+          <li>Top bucket 40%, not ~100% → no leakage alarm.</li>
+          <li>Bucket 0 (2.3%) ≈ first-episode rate from Session 12 (2.0%) — consistent.</li>
+          <li><b>Frequent flyers:</b> bucket 2 is small (824) but 3+ holds a third of all rows (17,765) — a cluster of
+          repeatedly admitted patients. Explains why the overall rate is 16.3% while most episodes are low risk.</li>
+        </ul>
+        <table>
+          <tr><th>Doubt</th><th>Answer</th></tr>
+          <tr><td>How many buckets?</td><td>No fixed number: each bucket needs enough rows to trust its rate (a few hundred+), but enough buckets to show the trend. Look at the raw distribution first (<code>GROUP BY</code> the value), then choose. 3–5 for ~52k rows. Buckets are for <b>reading</b> only — the model gets the raw count.</td></tr>
+          <tr><td>What is <code>episodes</code>?</td><td>Not a column — an alias for <code>COUNT(episode_id)</code>. Each row is one episode, so counting rows per bucket = episodes per bucket.</td></tr>
+        </table>
+        <div class="why"><b>Cautions:</b> association, not cause (prior stays mark sicker patients); and always read the
+        episode count next to the rate — a rate from 50 rows is noise.</div>
+      </div>
+
+      <div class="topic error" id="rate-query-errors">
+        <h3><span class="tag error">Errors</span> Writing the bucket query</h3>
+        <table>
+          <tr><th>Written</th><th>Problem → fix</th></tr>
+          <tr><td>No <code>GROUP BY</code></td><td>Aggregates next to a per-row <code>CASE</code> → "not a valid group by expression" → <code>GROUP BY BUCKETS ORDER BY BUCKETS</code></td></tr>
+          <tr><td><code>(readmitted_30d*100)/prior_episodes</code></td><td>Per-row (not per bucket), a boolean, divided by an unrelated column — and division by zero on 19,644 rows</td></tr>
+          <tr><td><code>(readmitted_30d/EPISODES)*100</code></td><td>Still the raw column → <code>COUNT_IF(readmitted_30d) * 100 / COUNT(episode_id)</code></td></tr>
+        </table>
+        <div class="why"><b>Multiply before dividing:</b> Snowflake's <code>/</code> returns decimals, but in integer-division
+        databases (SQL Server) <code>8/50*100 = 0</code> while <code>8*100/50 = 16</code>. Wrap the rate in <code>ROUND(…, 1)</code>.</div>
+      </div>
+
+      <div class="topic decision" id="session13-tests">
+        <h3><span class="tag decision">Verified</span> Two more tests → <code>dbt build</code> → <code>PASS=39</code></h3>
+        <table>
+          <tr><th>Test</th><th>Rule</th></tr>
+          <tr><td><code>tests/feature_store/features_365d_within_all_time.sql</code></td><td><code>WHERE prior_episodes_365d &gt; prior_episodes</code> — the 365-day window is a subset of all history</td></tr>
+          <tr><td><code>not_null</code> on <code>prior_episodes_365d</code> (YAML)</td><td>Closes the NULL blind spot</td></tr>
+        </table>
+        <p>Predicted and got: 33 + 2 = <b>35 data tests</b>, 35 + 4 models = <b>PASS=39</b>. Committed <code>8d408c5</code>, pushed.</p>
+        <div class="why"><b>One test can cover another:</b> "prior = 0 but 365d ≠ 0" needs no test of its own — if prior = 0 and
+        365d = 1, then 1 &gt; 0 and <code>features_365d_within_all_time</code> already fails. <b>One rule per file:</b> dbt names the
+        test after the file, so a FAIL tells you exactly which rule broke. <b>Descriptions drift:</b> update the YAML
+        description in the same commit as the code ("eligible", new feature, label).</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you know a feature is worth keeping?</p>
+        <p class="a">First I prove it's correct — row counts, range checks, and an independent recomputation. Then I check
+        its relationship with the label. For prior admissions in the last 365 days I bucketed the count and computed the
+        readmission rate per bucket: 2.3% with no recent stays, 10% with one, 30% with two, 40% with three or more. A steady
+        climb means real signal. I also watch the top bucket — if it were near 100%, I'd suspect leakage, because a feature
+        that predicts perfectly is usually reading the future.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you build a point-in-time rolling count in SQL without leakage?</p>
+        <p class="a">A self-join on patient with two date conditions: the earlier admission must be strictly before the
+        current one — otherwise the row counts itself — and within the window, here 365 days. The history side reads all
+        episodes, not just the training population, because an excluded stay still happened. I count a column from the
+        joined side under a LEFT JOIN so patients with no history get zero, aggregate in its own CTE keyed by episode, and
+        join that back. Then a test enforces that the windowed count never exceeds the all-time count.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What's a NULL trap in data validation?</p>
+        <p class="a">Comparison checks skip NULLs silently. "WHERE count &gt; total" returns nothing for a NULL count, because
+        NULL &gt; x is NULL, not true — and MIN and MAX ignore NULLs too. So a check can pass while hiding broken rows. After a
+        LEFT JOIN I always add an explicit IS NULL count, and make it a not_null test.</p>
+      </div>
+
+      <div class="topic error" id="session13-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>YAML file name</td><td><code>feature_store/_model.yml</code> → <code>_models.yml</code> to match CORE: <code>git mv …</code> + commit</td></tr>
+          <tr><td>YAML description</td><td>Confirm it says <b>eligible</b> and lists <code>prior_episodes_365d</code> and the label</td></tr>
+          <tr><td>Optional</td><td>Raw distribution of <code>prior_episodes_365d</code> 3–13 (is 3+ spread or clustered?); alias <code>f</code> in the final SELECT; <code>ROUND</code> in the bucket query</td></tr>
+          <tr><td>Next features</td><td>Chronic conditions and medication counts — new CORE models from RAW first; leakage question: when did each condition <b>start</b>?</td></tr>
+          <tr><td>Later</td><td>PR #2 (<code>feature-store-layer</code> → master); column descriptions + <code>dbt docs</code>; pytest + GitHub Actions CI</td></tr>
         </table>
       </div>
 
