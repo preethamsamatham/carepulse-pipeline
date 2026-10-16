@@ -28,4 +28,7 @@ models:
         - not_null 
     - name: "readmitted_30d"
       data_tests:
+        - not_null    
+    - name: "prior_episodes_365d"
+      data_tests:
         - not_null       
