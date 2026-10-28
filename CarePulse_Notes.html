@@ -260,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 13</span>
+    <span class="meta-pill">Sessions: 15</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 7 features + label, 14 tests, PASS=39)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 7 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45)</span>
   </div>
 </header>
 
@@ -563,6 +563,20 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#rate-query-errors"><span class="dot"></span>Bucket query errors</a>
     <a class="dbt" href="#session13-tests"><span class="dot"></span>Tests: PASS=39</a>
     <a class="dbt" href="#session13-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session14"><span class="dot"></span>Session 14 — profiling conditions</a>
+    <a class="dbt" href="#sql-files-in-git"><span class="dot"></span>SQL files in git</a>
+    <a class="dbt" href="#conditions-profile"><span class="dot"></span>RAW.CONDITIONS findings</a>
+    <a class="dbt" href="#profiling-query-errors"><span class="dot"></span>Profiling query errors</a>
+    <a class="dbt" href="#portable-sql"><span class="dot"></span>Portable SQL</a>
+    <a class="dbt" href="#active-at-discharge"><span class="dot"></span>Active at discharge rule</a>
+    <a class="dbt" href="#session15"><span class="dot"></span>Session 15 — new account rebuild</a>
+    <a class="dbt" href="#new-account"><span class="dot"></span>New account settings</a>
+    <a class="dbt" href="#rebuild-steps"><span class="dot"></span>Rebuild step by step</a>
+    <a class="dbt" href="#core-conditions"><span class="dot"></span>core.conditions</a>
+    <a class="dbt" href="#session15-errors"><span class="dot"></span>Errors</a>
+    <a class="dbt" href="#pass-45"><span class="dot"></span>PASS=45 breakdown</a>
+    <a class="dbt" href="#layers-explained"><span class="dot"></span>RAW / CORE / FEATURE layers</a>
+    <a class="dbt" href="#session15-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -4272,6 +4286,311 @@ LEFT JOIN with_history_365 h ON e.episode_id = h.episode_id</code></pre></div>
           <tr><td>Optional</td><td>Raw distribution of <code>prior_episodes_365d</code> 3–13 (is 3+ spread or clustered?); alias <code>f</code> in the final SELECT; <code>ROUND</code> in the bucket query</td></tr>
           <tr><td>Next features</td><td>Chronic conditions and medication counts — new CORE models from RAW first; leakage question: when did each condition <b>start</b>?</td></tr>
           <tr><td>Later</td><td>PR #2 (<code>feature-store-layer</code> → master); column descriptions + <code>dbt docs</code>; pytest + GitHub Actions CI</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session14">
+      <div class="session-head">
+        <h2>Session 14 — Profiling Conditions, Portable SQL, and the "Active at Discharge" Rule</h2>
+        <span class="date">Oct 16, 22 &amp; 25, 2026</span>
+      </div>
+
+      <div class="topic decision" id="sql-files-in-git">
+        <h3><span class="tag decision">Done</span> Worksheet queries saved to git with their results</h3>
+        <table>
+          <tr><th>File</th><th>What</th><th>Commit</th></tr>
+          <tr><td><code>snowflake/04_validate_core_and_features.sql</code></td><td>Every check from Sessions 9–13, grouped by layer, each with its expected result in a comment — re-running it is a regression check. Hand-run <code>CREATE OR REPLACE TABLE</code> removed (tables come from dbt only); leakage check corrected to <code>LEFT JOIN</code>; queries on columns that no longer exist moved to a commented appendix.</td><td><code>881d22c</code></td></tr>
+          <tr><td><code>snowflake/05_profile_conditions.sql</code></td><td>The RAW.CONDITIONS profiling below, with results and conclusions as comments</td><td><code>3039076</code></td></tr>
+          <tr><td><code>feature_store/_model.yml</code> → <code>_models.yml</code></td><td><code>git mv</code> so git records a <b>rename</b> and keeps history; matches the CORE folder</td><td><code>3873558</code></td></tr>
+        </table>
+        <div class="why">Numbered names (<code>01_setup</code> … <code>05_profile_conditions</code>) show the order the work happened. The
+        <code>LF will be replaced by CRLF</code> warning on commit is harmless: Linux vs Windows line endings, converted by git on Windows.</div>
+      </div>
+
+      <div class="topic decision" id="conditions-profile">
+        <h3><span class="tag decision">Findings</span> RAW.CONDITIONS — what the table actually contains</h3>
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Meaning</th></tr>
+          <tr><td>Rows · distinct patients</td><td>2,093,392 · 57,537</td><td>Every patient has conditions; ~36 records each. Equal counts don't prove the same patients → a <code>relationships</code> test later.</td></tr>
+          <tr><td><code>DESC TABLE</code></td><td>START, STOP (DATE), PATIENT, ENCOUNTER, SYSTEM, CODE, DESCRIPTION</td><td><b>No ID column</b> → no natural key. START/STOP are DATEs → compare with <code>discharged_at::DATE</code>. ENCOUNTER = the visit where it was recorded.</td></tr>
+          <tr><td>Rows with no STOP</td><td>536,112 = <b>25.6%</b></td><td>A quarter of condition records never end</td></tr>
+          <tr><td>Top 15 descriptions</td><td>#1 "Medication review due" (414,104)</td><td>Most top rows are <b>not diseases</b> — see the semantic tags</td></tr>
+        </table>
+        <table>
+          <tr><th>SNOMED tag (in brackets)</th><th>Examples</th><th>What it is</th></tr>
+          <tr><td><b>(situation)</b></td><td>Medication review due</td><td>Admin / process event</td></tr>
+          <tr><td><b>(finding)</b></td><td>Stress, Full-time employment, Social isolation</td><td>Social determinants of health</td></tr>
+          <tr><td><b>(disorder)</b></td><td>Gingivitis, Viral sinusitis, Hypertension</td><td>Actual medical conditions</td></tr>
+        </table>
+        <p><b>Hypothesis tested:</b> chronic disorders stay open, acute ones get a STOP. % of rows with no STOP, per disorder (top 25):</p>
+        <table>
+          <tr><th>Group</th><th>% open</th><th>Examples</th></tr>
+          <tr><td>Chronic</td><td>93–100%</td><td>Essential hypertension 100 · Ischemic heart disease 100 · Metabolic syndrome 100 · Hyperlipidemia 100 · Diabetic kidney disease 100 · Chronic sinusitis 97.7 · Anemia 93.3</td></tr>
+          <tr><td>Acute</td><td>0–4%</td><td>Gingivitis 0.6 · Viral sinusitis 0.5 · Pharyngitis 0.3 · Bronchitis 0.5 · Fracture 2.5 · COVID-19 3.2</td></tr>
+        </table>
+        <ul class="checklist">
+          <li><b>CKD stage 1 = 78.5%:</b> chronic, but the row STOPs when it progresses to stage 2 — STOP can mean "replaced by something worse", not "cured".</li>
+          <li><b>Small % open in acute conditions:</b> the patient's history ends (death / end of simulation) before they resolve — <b>right-censoring</b>.</li>
+          <li><b>Loss of teeth = 100% open:</b> long-lasting ≠ relevant to readmission.</li>
+        </ul>
+        <div class="why"><b>Conclusion:</b> counting all condition rows would be a bad feature (inflated by employment status and
+        medication reviews) → filter to <b>(disorder)</b>. And <code>STOP IS NULL</code> must <b>not</b> define "active" — see the leakage rule.</div>
+      </div>
+
+      <div class="topic error" id="profiling-query-errors">
+        <h3><span class="tag error">Errors</span> Writing the profiling queries</h3>
+        <table>
+          <tr><th>Written</th><th>Problem → fix</th></tr>
+          <tr><td><code>SELECT * … WHERE "STOP" IS NULL</code></td><td>Asked "how many" but returned the rows → <code>COUNT(*)</code> (or <code>COUNT_IF</code> inside query 1)</td></tr>
+          <tr><td><code>SELECT description … LIMIT 15</code></td><td>Without <code>ORDER BY</code>, LIMIT returns any 15 rows → <code>GROUP BY</code> + <code>COUNT(*)</code> + <code>ORDER BY … DESC</code>, then LIMIT (applied last)</td></tr>
+          <tr><td><code>SELECT COUNT(*), DISTINCT description</code></td><td>DISTINCT only goes right after SELECT (whole row) or inside an aggregate. "One row per value with a count" is <code>GROUP BY</code>, not DISTINCT.</td></tr>
+          <tr><td><code>COUNT_IF(STOP IS NULL)</code></td><td>Reserved word — quote it: <code>"STOP"</code>. CORE renames it <code>stop_date</code> so nobody downstream has to.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="portable-sql">
+        <h3><span class="tag concept">Concept</span> Snowflake conveniences vs portable SQL</h3>
+        <p>Logical order of clauses: <code>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT</code>. An alias is
+        created in SELECT, so standard SQL can't reuse it <i>inside the same SELECT</i> (all expressions are evaluated "at once"),
+        but ORDER BY can (it runs after). Snowflake and BigQuery relax this; Postgres and SQL Server don't.</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>-- Portable: compute once in a CTE, then the aliases are real columns
+WITH counts AS (
+    SELECT description,
+           COUNT(*)                                        AS total_rows,
+           SUM(CASE WHEN "STOP" IS NULL THEN 1 ELSE 0 END) AS open_rows
+    FROM raw.conditions
+    WHERE description LIKE '%(disorder)'
+    GROUP BY description
+)
+SELECT description, total_rows, open_rows,
+       ROUND(open_rows * 100.0 / total_rows, 1) AS pct_open
+FROM counts
+ORDER BY total_rows DESC
+LIMIT 25;</code></pre></div>
+        <table>
+          <tr><th>Snowflake</th><th>Problem elsewhere</th><th>Portable</th></tr>
+          <tr><td><code>COUNT_IF(cond)</code></td><td>Snowflake/BigQuery only</td><td><code>SUM(CASE WHEN cond THEN 1 ELSE 0 END)</code></td></tr>
+          <tr><td><code>x * 100 / y</code></td><td>Integer division in Postgres/SQL Server (<code>3*100/7 = 42</code>)</td><td><code>100.0</code> forces decimals</td></tr>
+          <tr><td><code>ROUND(x, 1)</code></td><td>Postgres needs <code>numeric</code></td><td><code>ROUND((…)::numeric, 1)</code></td></tr>
+          <tr><td><code>LIMIT 25</code></td><td>SQL Server has none</td><td><code>TOP 25</code> / <code>FETCH FIRST 25 ROWS ONLY</code></td></tr>
+          <tr><td><code>"STOP"</code></td><td>Postgres: quoted = case-sensitive; SQL Server: <code>[STOP]</code></td><td>Rename reserved words in CORE</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="active-at-discharge">
+        <h3><span class="tag error">Leakage</span> "Active at discharge" — a point-in-time rule, not <code>STOP IS NULL</code></h3>
+        <p><code>STOP IS NULL</code> describes a condition <b>as of the end of the data</b>, not as of the discharge. A condition active
+        at a 2018 discharge that stopped in 2020 has STOP = 2020 and would be wrongly excluded — using the future to describe
+        the past. Six cases, discharge on 2020-06-15:</p>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>            2015        2016               15 Jun 2020          2022
+             |           |                     |                  |
+(a)          [=========================================================>   still open
+(b)                                             |  [====================>  starts AFTER
+(c)          [===========]                     |                          ended BEFORE
+(d)          [=============================================]               ends AFTER
+                                               ▲  discharge</code></pre></div>
+        <table>
+          <tr><th>Case</th><th>START</th><th>STOP</th><th>Active?</th><th>Why</th></tr>
+          <tr><td>(a)</td><td>2015-01-01</td><td>none</td><td>✓</td><td>Crosses the discharge line</td></tr>
+          <tr><td>(b)</td><td>2020-06-29</td><td>none</td><td>✗</td><td>Starts after — future information</td></tr>
+          <tr><td>(c)</td><td>2015-01-01</td><td>2016-01-01</td><td>✗</td><td>Ended four years before</td></tr>
+          <tr><td>(d)</td><td>2015-01-01</td><td>2022-01-01</td><td>✓</td><td>Still going on the discharge date</td></tr>
+          <tr><td>(e)</td><td>2020-06-15</td><td>none</td><td>✓</td><td>Diagnosed during the stay — known at discharge</td></tr>
+          <tr><td>(f)</td><td>2015-01-01</td><td>2020-06-15</td><td>✓</td><td>Present during the stay (a judgement call — documented)</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>start_date &lt;= discharged_at::DATE
+AND (stop_date IS NULL OR stop_date &gt;= discharged_at::DATE)</code></pre></div>
+        <table>
+          <tr><th>Draft</th><th>Bug</th></tr>
+          <tr><td>(c) and (d) answered the wrong way round</td><td>The trap itself: a STOP in the future must not change what was true at discharge</td></tr>
+          <tr><td><code>STOP before OR STOP after</code></td><td>True for almost every date → (c) counted</td></tr>
+          <tr><td><code>STOP &gt; d OR STOP = d</code></td><td>Correct for (d)/(f) (= <code>&gt;=</code>), but <code>NULL &gt; d</code> is NULL → drops (a) and (e), the open chronic conditions</td></tr>
+          <tr><td><code>STOP = NULL</code></td><td>Never TRUE — always <code>IS NULL</code></td></tr>
+        </table>
+        <div class="why">Verified against all six cases. <b>The brackets around the OR are essential:</b> AND binds tighter than OR,
+        so without them (b) slips back in. Same "boundary cases first" method as the age bug.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you decide whether a condition was active at a point in time without leakage?</p>
+        <p class="a">I compare its start and stop dates to the prediction moment, not its current status. It's active if it
+        started on or before the discharge date and either has no end date or ended on or after discharge. Using "stop date is
+        null" would leak: a condition that resolved two years after discharge looks inactive today but was active then. I
+        check the rule against boundary cases — started after, ended before, ended after, and both equality days — and keep
+        the OR in brackets, because AND binds tighter.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">What parts of your SQL are Snowflake-specific?</p>
+        <p class="a">COUNT_IF, reusing a SELECT alias inside the same SELECT, and LIMIT. Postgres and SQL Server also do integer
+        division, so a percentage like count times 100 over total silently truncates. When portability matters I use SUM of a
+        CASE, a CTE for reused expressions, decimal literals like 100.0, and avoid reserved-word column names by renaming them
+        in the core layer.</p>
+      </div>
+    </section>
+
+    <section class="session dbt" id="session15">
+      <div class="session-head">
+        <h2>Session 15 — New Snowflake Account Rebuilt from Code, <code>core.conditions</code>, PASS=45</h2>
+        <span class="date">Oct 27–28, 2026</span>
+      </div>
+
+      <div class="topic decision" id="new-account">
+        <h3><span class="tag decision">Decision</span> Trial expired → new account, same specification</h3>
+        <table>
+          <tr><th>Setting</th><th>Chosen</th><th>Why</th></tr>
+          <tr><td>Edition</td><td><b>Standard</b> (form defaulted to Enterprise)</td><td>Everything CarePulse uses works on Standard; credits last longer</td></tr>
+          <tr><td>Cloud / region</td><td><b>AWS us-east-1</b> (form defaulted to Ohio, us-east-2)</td><td>Same region as the S3 bucket: no cross-region transfer fees; Snowpipe/SQS needs same region</td></tr>
+        </table>
+        <table>
+          <tr><th></th><th>Old account</th><th>New account</th></tr>
+          <tr><td>Account identifier (dbt <code>account:</code>)</td><td>ILBLMBM-HNC80452</td><td><b>VAGXMRU-GVC61853</b></td></tr>
+          <tr><td>Locator (<code>CURRENT_ACCOUNT()</code>)</td><td>OIC72962</td><td><b>WTC15100</b></td></tr>
+          <tr><td>User</td><td>VXS58020</td><td><b>PREETHAM01</b></td></tr>
+          <tr><td>Region</td><td colspan="2">AWS_US_EAST_1 (Step 0 of <code>01_setup.sql</code> confirmed it)</td></tr>
+        </table>
+        <div class="why"><b>Account picker at app.snowflake.com:</b> the browser remembers past accounts; the username/password form
+        comes after choosing one. Go straight to the account URL from the activation email
+        (<code>https://&lt;org&gt;-&lt;account&gt;.snowflakecomputing.com</code>) and bookmark it; clear site data for snowflake.com
+        to empty the list.</div>
+      </div>
+
+      <div class="topic decision" id="rebuild-steps">
+        <h3><span class="tag decision">Verified</span> Rebuild, step by step</h3>
+        <table>
+          <tr><th>#</th><th>Step</th><th>Proof</th></tr>
+          <tr><td>1</td><td>Key-pair auth: reuse the existing key — <code>ALTER USER PREETHAM01 SET RSA_PUBLIC_KEY = '…'</code> (lines between BEGIN/END of <code>carepulse_key.pub</code>; the <code>.p8</code> never leaves the laptop)</td><td><code>DESC USER</code>: HAS_KEYPAIR = true, RSA_PUBLIC_KEY_FP = SHA256:…</td></tr>
+          <tr><td>2</td><td><code>profiles.yml</code>: only <code>account</code> and <code>user</code> changed (file is outside the repo)</td><td><code>dbt debug</code> → Connection test OK (it tests login only, not that the warehouse exists)</td></tr>
+          <tr><td>3</td><td><code>01_setup.sql</code> STEP 1: warehouse, database, four schemas — one statement at a time, never "Run All"</td><td>CAREPULSE_WH X-Small, suspended, auto-suspend 60 s</td></tr>
+          <tr><td>4</td><td>STEP 2: storage integration → <code>DESC INTEGRATION</code> gives a <b>new</b> Snowflake IAM user and external ID</td><td><code>…523220341202:user/tpvd2000-s</code> · <code>WTC15100_SFCRole=3_…</code></td></tr>
+          <tr><td>5</td><td>Terraform: swap the two trust-policy values in <code>aws_iam_role.snowflake_role</code></td><td><code>plan</code>: 0 add, <b>1 change in-place</b>, 0 destroy → <code>apply</code></td></tr>
+          <tr><td>6</td><td>STEPS 3–4: suspend COMPUTE_WH, file format, stage</td><td><code>LIST @curated_stage</code> → all 6 Parquet files (integration → AssumeRole → IAM → S3 works)</td></tr>
+          <tr><td>7</td><td><code>02_load_raw.sql</code> for all six tables</td><td>Row counts below</td></tr>
+          <tr><td>8</td><td><code>dbt build</code></td><td>PASS=39, every CORE/FEATURE_STORE count identical to the old account</td></tr>
+        </table>
+        <table>
+          <tr><th>RAW table</th><th>Rows</th><th>Load time (X-Small)</th></tr>
+          <tr><td>patients</td><td>57,537 ✓</td><td>1.5 s</td></tr>
+          <tr><td>encounters</td><td>3,377,145 ✓</td><td>18.3 s</td></tr>
+          <tr><td>conditions</td><td>2,093,392 ✓</td><td>6.1 s</td></tr>
+          <tr><td>medications</td><td>2,903,828</td><td>12.5 s</td></tr>
+          <tr><td>procedures</td><td>9,388,622</td><td>29.2 s</td></tr>
+          <tr><td>observations</td><td>43,551,685 ✓</td><td>117.0 s</td></tr>
+          <tr><td><b>Total</b></td><td>~61M</td><td><b>~3 min</b></td></tr>
+        </table>
+        <div class="why"><b>Terraform warnings:</b> <code>dynamodb_table</code> is deprecated in favour of S3-native locking
+        (<code>use_lockfile = true</code>) — locking still works, optional tidy-up. "No <code>-out</code>": in a team/CI you'd
+        <code>plan -out=tfplan</code> then <code>apply tfplan</code> so apply does exactly what was reviewed. <b>Rule kept:</b> never
+        <code>CREATE OR REPLACE</code> the storage integration — it generates a new external ID and breaks the trust again.</div>
+      </div>
+
+      <div class="topic decision" id="core-conditions">
+        <h3><span class="tag decision">Verified</span> <code>core.conditions</code> — keep every row, flag the disorders</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT
+    "START"     AS start_date,
+    "STOP"      AS stop_date,
+    patient     AS patient_id,
+    encounter   AS encounter_id,
+    system      AS code_system,
+    code        AS condition_code,
+    description,
+    description LIKE '%(disorder)' AS is_disorder
+FROM {{ source('raw', 'conditions') }}</code></pre></div>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Rows CORE = RAW</td><td>2,093,392 ✓ (nothing filtered)</td></tr>
+          <tr><td><code>COUNT_IF(is_disorder)</code> in CORE</td><td>676,052 (32.3% — two thirds are findings/situations)</td></tr>
+          <tr><td>Independent recount from <b>RAW</b> with <code>LIKE</code></td><td>676,052 ✓</td></tr>
+          <tr><td><code>is_disorder IS NULL</code></td><td>0 ✓ → FALSE = 1,417,340</td></tr>
+          <tr><td>5 new tests</td><td>not_null patient_id + <b>relationships → patients</b>, not_null start_date, condition_code, is_disorder</td></tr>
+        </table>
+        <div class="why"><b>Why flag, not filter:</b> CORE is a clean copy of the truth, not a use case — a future feature may want
+        social findings, and filtering here would force a trip back to RAW. Same pattern as <code>is_eligible_index</code>: CORE
+        flags, FEATURE_STORE filters (<code>WHERE is_disorder</code>). <b>Booleans have three values:</b> checking only TRUE
+        misses NULLs — TRUE + FALSE + NULL must equal the total.</div>
+      </div>
+
+      <div class="topic error" id="session15-errors">
+        <h3><span class="tag error">Errors</span> Smaller mistakes this session</h3>
+        <table>
+          <tr><th>Error</th><th>Cause → fix</th></tr>
+          <tr><td>"Found 5 models" but "Finished running 4"</td><td><code>conditions.sql</code> was <b>empty</b> (never saved); dbt treats an empty model as nothing to do. <code>Get-Content</code> showed it.</td></tr>
+          <tr><td>"Found 35 data tests", predicted 40</td><td><code>_models.yml</code> not saved — dbt reads the disk, not the editor. Predicting the count caught it. (VS Code → File → Auto Save.)</td></tr>
+          <tr><td>Source columns written as <code>start_date</code>, <code>patient_id</code></td><td>A source describes RAW exactly: <code>START</code>, <code>PATIENT</code>… CORE names are created by the model.</td></tr>
+          <tr><td><code>WHERE description LIKE '%(disorder)'</code> in the model</td><td>Filters rows out of CORE → move the comparison into the SELECT as the flag</td></tr>
+          <tr><td>RAW recount run against <code>core.conditions</code></td><td>Not independent — the model could be wrong in both. Recount from <code>raw.conditions</code>.</td></tr>
+          <tr><td>Commit commands typed inside <code>git diff</code></td><td>The pager (<code>(END)</code> at the bottom) read them → <code>/bin/sh</code> errors. Press <code>q</code> first.</td></tr>
+          <tr><td><code>(.venv)</code> prompt</td><td>dbt lives in <code>venv-dbt</code> → activate that one</td></tr>
+          <tr><td>"Unable to do partial parsing because profile has changed"</td><td>Expected after editing <code>profiles.yml</code>: dbt re-reads the whole project once</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="pass-45">
+        <h3><span class="tag decision">Verified</span> <code>dbt build</code> → PASS=45 = 5 models + 40 tests</h3>
+        <table>
+          <tr><th>Tested</th><th>Tests</th><th>#</th></tr>
+          <tr><td>raw.patients, raw.encounters (sources)</td><td>not_null + unique on ID, each</td><td>4</td></tr>
+          <tr><td>patients</td><td>not_null/unique patient_id, not_null geo_known, <i>geo_consistency</i></td><td>4</td></tr>
+          <tr><td>encounters</td><td>not_null/unique encounter_id, not_null patient_id, relationships, <i>no_negative_stay</i></td><td>5</td></tr>
+          <tr><td>conditions</td><td>not_null patient_id, relationships, not_null start_date, condition_code, is_disorder</td><td>5</td></tr>
+          <tr><td>inpatient_episodes</td><td>not_null/unique episode_id, not_null patient_id, relationships, not_null is_eligible_index, readmitted_30d, <i>readmission_window</i>, <i>eligible_count</i></td><td>8</td></tr>
+          <tr><td>episode_features</td><td>8 not_null + unique + relationships, <i>valid_ranges</i>, <i>prior_episodes_match</i>, <i>row_count</i>, <i>365d_within_all_time</i></td><td>14</td></tr>
+          <tr><td colspan="2"><b>Total</b> (8 singular in italics, 32 generic)</td><td><b>40</b></td></tr>
+        </table>
+        <p>Committed as two commits — one reason each: <code>0145087</code> (trust policy) and <code>484aa80</code>
+        (<code>core.conditions</code> + tests), so either can be reverted alone.</p>
+      </div>
+
+      <div class="topic" id="layers-explained">
+        <h3><span class="tag concept">Doubt answered</span> RAW, CORE, FEATURE_STORE — what each holds and why</h3>
+        <table>
+          <tr><th>Layer</th><th>Role</th><th>Why it exists</th></tr>
+          <tr><td><b>RAW</b></td><td>Exact copy of the source, Synthea names, nothing fixed</td><td>Rebuild without re-ingesting (the death-flag fix); audit; independent recounts (the <code>is_disorder</code> check); load problems stay separate from logic problems</td></tr>
+          <tr><td><b>CORE</b></td><td>Renamed, cleaned, business entities, flags, tests</td><td>One agreed definition of "patient", "episode", "disorder" for every consumer</td></tr>
+          <tr><td><b>FEATURE_STORE</b> / MART</td><td>Use-case shaped: filtered, point-in-time</td><td>ML model / dashboards — filtering belongs here, not in CORE</td></tr>
+        </table>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>RAW.PATIENTS ────► core.patients ─────────────┬──────────────────┐
+RAW.ENCOUNTERS ──► core.encounters ──► core.inpatient_episodes ──┴──► feature_store.episode_features ──► ML
+RAW.CONDITIONS ──► core.conditions ──────────────────── (next) ───────────▲
+RAW.MEDICATIONS / PROCEDURES / OBSERVATIONS ──► loaded, not modelled yet</code></pre></div>
+        <div class="why">Industry name: the <b>medallion architecture</b> — bronze (RAW) / silver (CORE) / gold (FEATURE_STORE, MART).
+        <code>episode_features</code> never reads RAW directly. <code>dbt docs generate</code> + <code>dbt docs serve</code> draws
+        this lineage from the <code>ref()</code> / <code>source()</code> calls.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How reproducible is your pipeline?</p>
+        <p class="a">My Snowflake trial expired, so I rebuilt everything in a new account from code. A setup script created the
+        warehouse, database, schemas, storage integration and stage. The new account had a new Snowflake IAM identity, so one
+        Terraform change updated the AWS trust policy — the plan showed exactly one in-place change. The load script reloaded
+        about 61 million rows in three minutes, and dbt build rebuilt the core and feature layers. Every row count matched the
+        old account and all tests passed. Nothing was done by hand that isn't in git.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Why keep every row in the core layer instead of filtering early?</p>
+        <p class="a">Core is the shared, cleaned version of the truth, not one use case. In my conditions model two thirds of
+        rows are social findings and admin events rather than diseases. My readmission feature only wants disorders, but a
+        later feature might want social isolation, so I keep everything and add an is_disorder flag, tested for nulls. The
+        feature layer filters on the flag. It's the same pattern as my episodes table, which keeps deaths and hospice cases
+        flagged instead of deleting them.</p>
+      </div>
+
+      <div class="topic error" id="session15-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Next feature</td><td><code>active_conditions_at_discharge</code> in <code>episode_features</code>: disorders only, the point-in-time rule from Session 14; then rate by bucket + tests</td></tr>
+          <tr><td>Worksheet → git</td><td>Save the <code>is_disorder</code> checks as <code>snowflake/06_validate_core_conditions.sql</code></td></tr>
+          <tr><td>Config outside git</td><td><code>~/.snowflake/connections.toml</code> (Snowflake CLI) still points at the old account</td></tr>
+          <tr><td>Optional tidy</td><td><code>conditions</code> description: capital letter + list the renames; Terraform <code>use_lockfile</code></td></tr>
+          <tr><td>Later</td><td>Medication counts; PR #2; <code>dbt docs</code>; pytest + GitHub Actions CI</td></tr>
         </table>
       </div>
 
