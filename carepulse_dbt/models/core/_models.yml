@@ -44,5 +44,23 @@ models:
       - name: "readmitted_30d"
         data_tests:
           - not_null              
-
+  - name: "conditions"
+    description: "one row per condition record (all SNOMED tags kept), with is_disorder flagging medical disorders"
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "start_date"
+        data_tests:
+          - not_null
+      - name: "condition_code"
+        data_tests:
+          - not_null  
+      - name: "is_disorder"
+        data_tests:
+          - not_null
           
