@@ -37,6 +37,18 @@ with_history_365 AS (
     AND e2.admitted_at < e.admitted_at
     AND DATEDIFF(day, e2.admitted_at::DATE, e.admitted_at::DATE) <= 365
     GROUP BY e.episode_id
+),
+with_conditions AS (
+   SELECT
+   e.episode_id,
+   COUNT(DISTINCT c.condition_code) as active_disorders_at_discharge
+   FROM episode e
+   LEFT JOIN {{ ref('conditions') }} c
+   ON e.patient_id = c.patient_id
+   AND c.is_disorder = TRUE
+   AND c.start_date <= e.discharged_at::DATE
+   AND (c.stop_date IS NULL OR c.stop_date >= e.discharged_at::DATE)
+   GROUP BY e.episode_id
 )
     SELECT         
         e.episode_id,
@@ -49,7 +61,10 @@ with_history_365 AS (
         e.age_at_admission,
         e.length_of_stay_days,
         e.prior_episodes,
-        h.prior_episodes_365d
+        h.prior_episodes_365d,
+        c.active_disorders_at_discharge
     FROM with_features e
     LEFT JOIN with_history_365 h
     ON e.episode_id = h.episode_id
+    LEFT JOIN with_conditions c
+    ON e.episode_id = c.episode_id
