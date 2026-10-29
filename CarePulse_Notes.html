@@ -260,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 15</span>
+    <span class="meta-pill">Sessions: 16</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 7 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45)</span>
   </div>
 </header>
 
@@ -577,6 +577,14 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#pass-45"><span class="dot"></span>PASS=45 breakdown</a>
     <a class="dbt" href="#layers-explained"><span class="dot"></span>RAW / CORE / FEATURE layers</a>
     <a class="dbt" href="#session15-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session16"><span class="dot"></span>Session 16 — active disorders</a>
+    <a class="dbt" href="#disorders-design"><span class="dot"></span>Four design decisions</a>
+    <a class="dbt" href="#disorders-cte"><span class="dot"></span>The CTE</a>
+    <a class="dbt" href="#disorders-cte-errors"><span class="dot"></span>CTE drafts</a>
+    <a class="dbt" href="#disorders-checks"><span class="dot"></span>Checks + rate by bucket</a>
+    <a class="dbt" href="#bucket-query-errors"><span class="dot"></span>Bucket query errors</a>
+    <a class="dbt" href="#zero-percent"><span class="dot"></span>The suspicious 0%</a>
+    <a class="dbt" href="#session16-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -4591,6 +4599,146 @@ RAW.MEDICATIONS / PROCEDURES / OBSERVATIONS ──► loaded, not modelled yet</
           <tr><td>Config outside git</td><td><code>~/.snowflake/connections.toml</code> (Snowflake CLI) still points at the old account</td></tr>
           <tr><td>Optional tidy</td><td><code>conditions</code> description: capital letter + list the renames; Terraform <code>use_lockfile</code></td></tr>
           <tr><td>Later</td><td>Medication counts; PR #2; <code>dbt docs</code>; pytest + GitHub Actions CI</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session16">
+      <div class="session-head">
+        <h2>Session 16 — <code>active_disorders_at_discharge</code>: Point-in-Time Join, Signal Check, a Suspicious 0%</h2>
+        <span class="date">Oct 28–29, 2026</span>
+      </div>
+
+      <div class="topic decision" id="disorders-design">
+        <h3><span class="tag decision">Decision</span> Four design questions answered before writing SQL</h3>
+        <table>
+          <tr><th>#</th><th>Question</th><th>Decision</th></tr>
+          <tr><td>1</td><td>Which rows count?</td><td><code>is_disorder</code> = TRUE — filtered <b>in the ON clause</b> (or a CTE before the join), never in a WHERE after the LEFT JOIN</td></tr>
+          <tr><td>2</td><td>Join condition</td><td>Same patient + the Session 14 rule with CORE names (below)</td></tr>
+          <tr><td>3</td><td>Count rows or diseases?</td><td><code>COUNT(DISTINCT c.condition_code)</code> — hypertension recorded twice is still one disease</td></tr>
+          <tr><td>4</td><td>Patients with nothing active</td><td><code>LEFT JOIN</code> from the episodes + a count that skips NULLs → 0, not missing</td></tr>
+        </table>
+        <table>
+          <tr><th>After LEFT JOIN</th><th>condition_code</th><th><code>COUNT(*)</code></th><th><code>COUNT(DISTINCT c.condition_code)</code></th></tr>
+          <tr><td>X (hypertension ×2, prediabetes)</td><td>59621000, 59621000, 15777000</td><td>3</td><td><b>2</b> ✓</td></tr>
+          <tr><td>Y (nothing active)</td><td>NULL</td><td>1 ✗</td><td><b>0</b> ✓</td></tr>
+        </table>
+        <div class="why"><b>The WHERE trap:</b> after a LEFT JOIN, Y's <code>c.is_disorder</code> is NULL; <code>WHERE c.is_disorder</code>
+        removes Y and silently turns the LEFT JOIN into an inner join. Conditions on the right-hand table belong in the
+        <code>ON</code> clause.</div>
+      </div>
+
+      <div class="topic decision" id="disorders-cte">
+        <h3><span class="tag decision">Verified</span> The CTE — SUCCESS 51,925</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>with_conditions AS (
+    SELECT
+        e.episode_id,
+        COUNT(DISTINCT c.condition_code) AS active_disorders_at_discharge
+    FROM episode e                                   -- has patient_id + discharged_at
+    LEFT JOIN {{ ref('conditions') }} c
+           ON e.patient_id = c.patient_id
+          AND c.is_disorder
+          AND c.start_date &lt;= e.discharged_at::DATE
+          AND (c.stop_date IS NULL OR c.stop_date &gt;= e.discharged_at::DATE)
+    GROUP BY e.episode_id
+)
+-- final SELECT: … c.active_disorders_at_discharge
+--   LEFT JOIN with_conditions c ON e.episode_id = c.episode_id</code></pre></div>
+        <div class="why">Build time rose from ~1.5 s to ~5 s — the model now joins against 2 million condition rows.
+        Row count unchanged: one count per episode.</div>
+      </div>
+
+      <div class="topic error" id="disorders-cte-errors">
+        <h3><span class="tag error">Errors</span> Drafts of the CTE</h3>
+        <table>
+          <tr><th>Written</th><th>Problem → fix</th></tr>
+          <tr><td><code>ON e.patient_id AND c.patient_id</code></td><td>AND joins conditions, not values → <code>=</code></td></tr>
+          <tr><td><code>e.PATIENT_ID `=` c.PATIENT_ID</code></td><td>Backticks were chat formatting, not SQL</td></tr>
+          <tr><td><code>stop_date::DATE</code></td><td>Already DATE — cast only where types differ (<code>discharged_at</code>)</td></tr>
+          <tr><td><code>c.episode_id</code>, <code>c.condition_id</code></td><td>Don't exist: conditions connect by patient + dates; the column is <code>condition_code</code></td></tr>
+          <tr><td><code>{{ ref('episode_conditions') }}</code></td><td>No such model — dbt stops before running ("depends on a node … not found")</td></tr>
+          <tr><td><code>FROM with_history_365 … JOIN with_features ON patient_id</code></td><td>Patient-only join = every episode × every episode of that patient (10 episodes → 100 rows), and no <code>discharged_at</code>. Left side = the <code>episode</code> CTE.</td></tr>
+          <tr><td>Final SELECT without <code>with_conditions</code></td><td>CTE computed and thrown away — join it back and select the column</td></tr>
+          <tr><td><code>Get-Content models\…</code> from the repo root; <code>(.venv)</code> → "dbt not recognized"</td><td>dbt work runs in <code>carepulse_dbt</code> with <code>venv-dbt</code>. Permanent fix: VS Code → Python: Select Interpreter → <code>C:\dev\venv-dbt\Scripts\python.exe</code></td></tr>
+          <tr><td>A file called <code>t policy at new account (WTC15100)"</code></td><td>Debris from typing into the <code>git diff</code> pager: <code>s</code> = save to file. Removed with <code>Get-ChildItem "t policy*"</code> first, then <code>Remove-Item</code> — <b>preview a wildcard before deleting with it</b>.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="disorders-checks">
+        <h3><span class="tag decision">Findings</span> Checks and the signal by bucket</h3>
+        <table>
+          <tr><th>Check (on <code>feature_store.episode_features</code>)</th><th>Result</th></tr>
+          <tr><td>NULLs in the new column</td><td>0 ✓</td></tr>
+          <tr><td>min / max</td><td>0 / 30 — no fan-out (that would give hundreds)</td></tr>
+          <tr><td>Distribution</td><td>Sums to 51,925 ✓; peak at 4 (6,337); 8.3% have 0; 90% have ≤ 12; under 1% have 20+</td></tr>
+        </table>
+        <table>
+          <tr><th>Active disorders</th><th>Episodes</th><th>Readmitted</th><th>Rate</th></tr>
+          <tr><td>0</td><td>4,335</td><td>0</td><td><b>0.0%</b></td></tr>
+          <tr><td>1–2</td><td>7,639</td><td>228</td><td>3.0%</td></tr>
+          <tr><td>3–5</td><td>17,562</td><td>3,258</td><td>18.6%</td></tr>
+          <tr><td>6–9</td><td>12,431</td><td>2,709</td><td>21.8%</td></tr>
+          <tr><td>10–14</td><td>6,964</td><td>1,610</td><td>23.1%</td></tr>
+          <tr><td>15+</td><td>2,994</td><td>639</td><td>21.3%</td></tr>
+          <tr><td><b>Total</b></td><td><b>51,925</b> ✓</td><td><b>8,444</b> ✓</td><td>16.3%</td></tr>
+        </table>
+        <div class="why"><b>Reading:</b> strong signal at the low end (0–2 vs 3+), then a plateau around 19–23% — it separates
+        healthy from chronically ill, not ill from very ill. Unlike <code>prior_episodes_365d</code> (2.3% → 40.4%), it does not
+        keep climbing.</div>
+      </div>
+
+      <div class="topic error" id="bucket-query-errors">
+        <h3><span class="tag error">Errors</span> The bucket query</h3>
+        <table>
+          <tr><th>Problem</th><th>Fix</th></tr>
+          <tr><td>Text labels sort like a dictionary: '0', '1-2', <b>'10-14'</b>, '15+', '3-5', '6-9'</td><td><code>ORDER BY MIN(active_disorders_at_discharge)</code> (or prefix labels 'a:', 'b:'…) — same lexicographic rule as the age fix</td></tr>
+          <tr><td>No <code>GROUP BY</code></td><td>"not a valid group by expression" again</td></tr>
+          <tr><td>30 rows, '1-2' twice, '3-5' three times</td><td>Grouped by the <b>raw column</b>, not the bucket → alias the CASE (<code>AS bucket</code>) and <code>GROUP BY bucket</code>. Never give the alias a real column's name.</td></tr>
+          <tr><td>Checked on the conditions table?</td><td>No — check where the column lives: conditions is the input, <code>episode_features</code> the output</td></tr>
+          <tr><td><code>SUM(x)/COUNT(x)</code></td><td>Works; <code>AVG(x)</code> says the same thing</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="zero-percent">
+        <h3><span class="tag error">Investigation</span> Exactly 0 readmissions out of 4,335 — too clean to trust blindly</h3>
+        <table>
+          <tr><th>Gender</th><th>Episodes</th><th>Avg age</th><th>Avg stay</th><th>Likely</th></tr>
+          <tr><td>F</td><td>3,429</td><td>27.7</td><td>1.5 days</td><td>Childbirth (pregnancy is a <i>finding</i>, not a disorder)</td></tr>
+          <tr><td>M</td><td>906</td><td>16.6</td><td>3.2 days</td><td><b>Unknown</b></td></tr>
+        </table>
+        <div class="why"><b>Rule:</b> an exact 0% or 100% group is a question, not an answer. Leakage usually pushes a group toward
+        100%, so 0% points to a real (synthetic) pattern — but it stays a guess until the encounter descriptions confirm it.
+        <code>COUNT(DISTINCT gender) = 2</code> only said both genders exist; the per-gender count was needed.</div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">You LEFT JOIN and filter the right-hand table — what can go wrong?</p>
+        <p class="a">If the filter is in the WHERE clause, rows with no match have NULLs in the right-hand columns, the filter
+        is not true for NULL, and those rows disappear — the LEFT JOIN quietly becomes an inner join. In my conditions feature
+        that would have dropped every episode with no active disorder instead of giving it zero. Filters on the right-hand
+        table go in the ON clause, and I count a right-hand column, not star, so unmatched rows count as zero.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">A feature shows exactly 0% outcome in one group. What do you do?</p>
+        <p class="a">Treat it as a question. In CarePulse, 4,335 episodes with no active disorders had zero readmissions. I
+        profiled the group: 79% women averaging 28 years with 1.5-day stays, which looks like childbirth, and a smaller group
+        of young men I couldn't explain yet. Leakage would usually show up as near 100%, but a perfect value either way means
+        I check what the rows actually are before letting a model learn from it.</p>
+      </div>
+
+      <div class="topic error" id="session16-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Commit</td><td><code>episode_features.sql</code> (dbt build PASS=45 with the new column)</td></tr>
+          <tr><td>Reason query</td><td>Join the 0-disorder episodes to <code>core.encounters</code> (same patient, <code>start_ts = admitted_at</code>, inpatient) → top descriptions by gender: confirm childbirth, explain the 906 men</td></tr>
+          <tr><td>Tests</td><td><code>not_null</code> on <code>active_disorders_at_discharge</code>; a singular test that recounts active disorders independently</td></tr>
+          <tr><td>Git</td><td>Worksheet → <code>snowflake/06_validate_core_conditions.sql</code>; YAML description of <code>episode_features</code> updated with the new feature</td></tr>
+          <tr><td>Later</td><td>Medication counts; PR #2; <code>dbt docs</code>; CI</td></tr>
         </table>
       </div>
 
