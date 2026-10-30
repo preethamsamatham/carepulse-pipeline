@@ -1,7 +1,7 @@
 version: 2
 models:
 - name: "episode_features"
-  description: "One row per inpatient episode, with features for modeling. Features include demographics (age, gender), length of stay, and number of prior episodes."
+  description: "One row per eligible inpatient episode with the 30-day readmission label and point-in-time features."
   columns:
     - name: "episode_id"
       data_tests:
@@ -32,3 +32,6 @@ models:
     - name: "prior_episodes_365d"
       data_tests:
         - not_null       
+    - name: "active_disorders_at_discharge"
+      data_tests:
+        - not_null
