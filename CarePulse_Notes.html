@@ -260,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 16</span>
+    <span class="meta-pill">Sessions: 17</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45) · 0% group explained (elective / one-off stays)</span>
   </div>
 </header>
 
@@ -585,6 +585,13 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#bucket-query-errors"><span class="dot"></span>Bucket query errors</a>
     <a class="dbt" href="#zero-percent"><span class="dot"></span>The suspicious 0%</a>
     <a class="dbt" href="#session16-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session17"><span class="dot"></span>Session 17 — solving the 0%</a>
+    <a class="dbt" href="#reason-query"><span class="dot"></span>The reason query</a>
+    <a class="dbt" href="#reason-query-errors"><span class="dot"></span>Reason query drafts</a>
+    <a class="dbt" href="#appendicitis-case"><span class="dot"></span>The appendicitis case</a>
+    <a class="dbt" href="#admission-reason-idea"><span class="dot"></span>Idea: admission_reason</a>
+    <a class="dbt" href="#file-06"><span class="dot"></span>File 06</a>
+    <a class="dbt" href="#session17-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -4739,6 +4746,128 @@ RAW.MEDICATIONS / PROCEDURES / OBSERVATIONS ──► loaded, not modelled yet</
           <tr><td>Tests</td><td><code>not_null</code> on <code>active_disorders_at_discharge</code>; a singular test that recounts active disorders independently</td></tr>
           <tr><td>Git</td><td>Worksheet → <code>snowflake/06_validate_core_conditions.sql</code>; YAML description of <code>episode_features</code> updated with the new feature</td></tr>
           <tr><td>Later</td><td>Medication counts; PR #2; <code>dbt docs</code>; CI</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session17">
+      <div class="session-head">
+        <h2>Session 17 — Solving the 0%: Sterilization, Appendicitis and a Gap in the Conditions Table</h2>
+        <span class="date">Oct 29, 2026</span>
+      </div>
+
+      <div class="topic decision" id="reason-query">
+        <h3><span class="tag decision">Verified</span> The reason query — linking episodes back to their encounter</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT f.gender, en.description, en.reason_description,
+       COUNT(DISTINCT f.episode_id) AS episodes
+FROM carepulse_db.feature_store.episode_features f
+JOIN carepulse_db.core.encounters en
+  ON  en.patient_id      = f.patient_id
+  AND en.start_ts        = f.admitted_at        -- the encounter that starts the episode
+  AND en.encounter_class = 'inpatient'
+WHERE f.active_disorders_at_discharge = 0
+GROUP BY f.gender, en.description, en.reason_description
+ORDER BY episodes DESC
+LIMIT 10;</code></pre></div>
+        <table>
+          <tr><th>Gender</th><th>Encounter description</th><th>Reason</th><th>Episodes</th></tr>
+          <tr><td>F</td><td>Admission to surgical department</td><td><b>Sterilization requested</b> (situation)</td><td>2,704</td></tr>
+          <tr><td>M</td><td>Encounter for problem</td><td><b>Appendicitis</b></td><td>846</td></tr>
+          <tr><td>F</td><td>Encounter for problem</td><td><b>Appendicitis</b></td><td>684</td></tr>
+          <tr><td>M + F</td><td>Hospital admission for isolation</td><td>COVID-19</td><td>32</td></tr>
+          <tr><td>M + F</td><td>Non-urgent orthopedic admission</td><td>ACL, patellar tendon, MCL injuries</td><td>~50</td></tr>
+        </table>
+        <div class="why"><b>Self-check:</b> the 7 description rows add up to exactly <b>4,335</b> — every 0-disorder episode matched
+        exactly one inpatient encounter. If the join had fanned out, the total would have been larger.
+        <b>Reading:</b> elective or one-off procedures with nothing chronic behind them — no reason to come back.</div>
+      </div>
+
+      <div class="topic error" id="reason-query-errors">
+        <h3><span class="tag error">Errors</span> Drafts of the reason query</h3>
+        <table>
+          <tr><th>Written</th><th>Problem → fix</th></tr>
+          <tr><td><code>discriptions</code></td><td>Typo → <code>description</code></td></tr>
+          <tr><td><code>en.end_ts = 'inpatient'</code></td><td>Wrong column: the type of visit is <code>encounter_class</code></td></tr>
+          <tr><td>No <code>WHERE active_disorders_at_discharge = 0</code></td><td>Counts for all episodes (18,515 in the top row) — the question was about the 0 group</td></tr>
+          <tr><td>Only <code>description</code></td><td>"Encounter for problem" says nothing → add <code>reason_description</code></td></tr>
+          <tr><td><code>GROUP BY gender, description</code></td><td>Works, but prefix with the table alias (<code>f.</code>, <code>en.</code>) when two tables are joined — <code>description</code> exists in more than one</td></tr>
+          <tr><td><code>COUNT(episode_id)</code></td><td><code>COUNT(DISTINCT f.episode_id)</code> — safe even if a join fans out</td></tr>
+          <tr><td><code>LIMIT 1</code> with no <code>ORDER BY</code></td><td>Fine for "show me any one case", but not repeatable — Snowflake can return a different row each run</td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="appendicitis-case">
+        <h3><span class="tag error">Investigation</span> Appendicitis is a disorder — so why 0?</h3>
+        <table>
+          <tr><th>Step</th><th>Result</th></tr>
+          <tr><td>Pick one appendicitis episode with 0 disorders</td><td>Patient <code>6112f7a1-…</code>, admitted 1967-09-06, discharged 1967-09-10</td></tr>
+          <tr><td>That patient's rows in <code>core.conditions</code></td><td><b>No "Appendicitis" row at all.</b> Only <code>1967-09-06 | no stop | History of appendectomy (situation) | FALSE</code></td></tr>
+          <tr><td>Other disorders?</td><td>All start in 1990 or later → nothing active in 1967 → <b>0 is correct</b></td></tr>
+        </table>
+        <div class="why"><b>Root cause:</b> Synthea records the reason for an acute surgical stay on the <b>encounter</b>
+        (<code>reason_description</code>), not as a row in conditions. The feature is right; the conditions table just doesn't see
+        these stays. The after-effect ("History of appendectomy") is a <i>situation</i>, so <code>is_disorder</code> correctly excludes it.</div>
+        <table>
+          <tr><th>My guess</th><th>What the data said</th></tr>
+          <tr><td>Women ~28, 1.5-day stays → childbirth</td><td>✗ Sterilization (2,704)</td></tr>
+          <tr><td>Appendicitis row has a stop date before discharge</td><td>✗ There is no appendicitis row</td></tr>
+        </table>
+        <div class="why"><b>Lesson:</b> profile first, then query the actual rows — a plausible story is still a guess. Both
+        guesses were reasonable and both were wrong.</div>
+      </div>
+
+      <div class="topic decision" id="admission-reason-idea">
+        <h3><span class="tag decision">Idea</span> A future feature: <code>admission_reason</code></h3>
+        <table>
+          <tr><th>Question</th><th>Answer</th></tr>
+          <tr><td>Source</td><td><code>core.encounters.reason_description</code> of the encounter that starts the episode</td></tr>
+          <tr><td>Leakage-safe?</td><td>Yes — the reason is known <b>at admission</b>, before discharge</td></tr>
+          <tr><td>What it adds</td><td>Separates "elective / one-off" stays (sterilization, appendectomy) from chronic-disease stays — exactly what the conditions table misses</td></tr>
+          <tr><td>Watch out</td><td>Many distinct values → group into categories, or let the model encode the top N</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="file-06">
+        <h3><span class="tag decision">Git</span> <code>snowflake/06_validate_core_conditions.sql</code></h3>
+        <p>The worksheet, formatted: keywords in CAPS, full three-part names, results as comments, three sections
+        (is_disorder flag · the feature · the 0% investigation). Fixes made while formatting:</p>
+        <table>
+          <tr><th>In the worksheet</th><th>In the file</th></tr>
+          <tr><td>Missing semicolons, <code>seleCT</code>, mixed case</td><td>Every statement ends with <code>;</code>, keywords uppercase</td></tr>
+          <tr><td><code>feature_store.episode_features</code></td><td><code>carepulse_db.feature_store.…</code> — runs in any worksheet context</td></tr>
+          <tr><td><code>ROUND((READMITTED/episodes)*100,1)</code></td><td><code>ROUND(COUNT_IF(readmitted_30d) * 100 / COUNT(*), 1)</code> — no alias reuse, portable</td></tr>
+          <tr><td>Last <code>WHEN … &gt; 14</code></td><td><code>ELSE '15+'</code> — nothing can fall through to NULL</td></tr>
+          <tr><td>Bare <code>SELECT *</code> lines</td><td>Removed — exploration, not checks</td></tr>
+        </table>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Your feature says a patient had zero active conditions, but the stay was for appendicitis. Is the feature wrong?</p>
+        <p class="a">Not necessarily — I checked the rows. In Synthea the appendicitis was recorded only as the encounter's
+        reason, not in the conditions table, so "zero active disorders" was a correct count of what conditions contains. The
+        gap is in the source, not the logic. The fix isn't to hack the feature but to add a second one — the admission reason
+        from the encounter — which is known at admission, so it doesn't leak.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you know a join didn't duplicate rows?</p>
+        <p class="a">I reconcile totals. When I joined 4,335 episodes to their admitting encounter, the grouped counts summed
+        to exactly 4,335, so each episode matched one encounter. I also count DISTINCT episode IDs so a fan-out can't inflate
+        the numbers silently — and if the totals don't match, that's the first thing I investigate.</p>
+      </div>
+
+      <div class="topic error" id="session17-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>YAML (start of next session)</td><td><code>not_null</code> on <code>active_disorders_at_discharge</code> + update the <code>episode_features</code> description → <code>dbt build</code>, expect <b>41 data tests, PASS=46</b></td></tr>
+          <tr><td>Git</td><td>Commit <code>snowflake/06_validate_core_conditions.sql</code> and the notes</td></tr>
+          <tr><td>Singular test</td><td>Recount active disorders independently and compare</td></tr>
+          <tr><td>New feature</td><td><code>admission_reason</code> from <code>encounters.reason_description</code></td></tr>
+          <tr><td>Later</td><td>Medication counts; <code>connections.toml</code> for the new account; PR #2; <code>dbt docs</code>; CI</td></tr>
         </table>
       </div>
 
