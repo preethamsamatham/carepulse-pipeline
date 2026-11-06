@@ -1,4 +1,4 @@
-﻿terraform {
+terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -192,14 +192,16 @@ resource "aws_iam_role" "snowflake_role" {
   name = "carepulse-snowflake-role"
 
   # Trust policy: WHO may assume this role
+  # Values come from DESC INTEGRATION carepulse_s3_int (Snowflake account WTC15100,
+  # recreated Oct 2026). A new Snowflake account = new IAM user ARN + external ID.
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { AWS = "arn:aws:iam::749680934045:user/qar92000-s" }
+      Principal = { AWS = "arn:aws:iam::523220341202:user/tpvd2000-s" }
       Action    = "sts:AssumeRole"
       Condition = {
-        StringEquals = { "sts:ExternalId" = "OIC72962_SFCRole=2_TZRNwgwxxzCB5ufJhcyWF67fSKQ=" }
+        StringEquals = { "sts:ExternalId" = "WTC15100_SFCRole=3_Ps1fkgeYWg4h6n9BtuihvIUXcpg=" }
       }
     }]
   })

@@ -25,7 +25,7 @@ models:
                 to: ref('patients')
                 field: patient_id
   - name: "inpatient_episodes"
-    description: "One row per inpatient hospital episode, built from core.encounters and core.patients. Overlapping and same-day stays are merged into one episode. Flags mark episodes where the patient died or was discharged to hospice, is_eligible_index marks the trainable episodes, and readmitted_30d is the 30-day readmission label."
+    description: "One row per inpatient hospital episode, built from core.encounters and core.patients. Overlapping and same-day stays are merged into one episode. Flags mark episodes where the patient died or was discharged to hospice, is_eligible_index marks the trainable episodes, and readmitted_30d is the 30-day readmission label. is_planned_readmission flags readmissions where the next stay contains chemotherapy, and unplanned_readmitted_30d is the readmission label without them."
     columns:
       - name: "episode_id"
         data_tests:
@@ -43,6 +43,55 @@ models:
           - not_null
       - name: "readmitted_30d"
         data_tests:
-          - not_null              
+          - not_null 
+      - name: "is_planned_readmission"
+        data_tests:
+          - not_null
+      - name: "unplanned_readmitted_30d"
+        data_tests:
+          - not_null                     
+  - name: "conditions"
+    description: "one row per condition record (all SNOMED tags kept), with is_disorder flagging medical disorders"
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "start_date"
+        data_tests:
+          - not_null
+      - name: "condition_code"
+        data_tests:
+          - not_null  
+      - name: "is_disorder"
+        data_tests:
+          - not_null
+  - name: "procedures"
+    description: "one row per procedure record (all SNOMED tags kept), with is_chemotherapy flagging chemotherapy procedures"
+    columns:
+      - name: "patient_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('patients')
+                field: patient_id
+      - name: "encounter_id"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('encounters')
+                field: encounter_id
+      - name: "procedure_code"
+        data_tests:
+          - not_null  
+      - name: "is_chemotherapy"
+        data_tests:
+          - not_null        
 
-          
+
+

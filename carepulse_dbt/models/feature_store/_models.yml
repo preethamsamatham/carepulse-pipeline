@@ -1,0 +1,37 @@
+version: 2
+models:
+- name: "episode_features"
+  description: "One row per eligible inpatient episode with the 30-day readmission label and point-in-time features."
+  columns:
+    - name: "episode_id"
+      data_tests:
+        - not_null
+        - unique
+    - name: "patient_id"
+      data_tests:
+        - not_null
+        - relationships:
+            arguments:
+              to: ref('patients')
+              field: patient_id
+    - name: "gender"
+      data_tests:
+        - not_null
+    - name: "age_at_admission"
+      data_tests:
+        - not_null
+    - name: "length_of_stay_days"
+      data_tests:
+        - not_null
+    - name: "prior_episodes"
+      data_tests:
+        - not_null 
+    - name: "readmitted_30d"
+      data_tests:
+        - not_null    
+    - name: "prior_episodes_365d"
+      data_tests:
+        - not_null       
+    - name: "active_disorders_at_discharge"
+      data_tests:
+        - not_null
