@@ -55,11 +55,24 @@ episode_span AS (
     ) AS discharged_to_hospice
     FROM with_death d
  ),
+with_chemo AS (
+    SELECT h.*,
+    EXISTS (
+        SELECT 1
+        FROM {{ ref('procedures') }} p
+        WHERE h.patient_id = p.patient_id
+        AND p.is_chemotherapy = TRUE
+        AND p.start_ts BETWEEN h.admitted_at AND h.discharged_at
+    ) AS has_chemotherapy
+    FROM with_hospice h
+ ),
  with_next AS (
     SELECT *,
     LEAD(admitted_at) OVER (PARTITION BY patient_id ORDER BY admitted_at) 
-     AS next_admission_at
-    FROM with_hospice
+     AS next_admission_at,
+    LEAD(has_chemotherapy) OVER (PARTITION BY patient_id ORDER BY admitted_at) 
+     AS next_has_chemotherapy
+    FROM with_chemo
  ),
  final AS (
     SELECT 
@@ -76,7 +89,9 @@ episode_span AS (
     (NOT died_in_episode AND NOT death_before_admission AND NOT discharged_to_hospice) AS is_eligible_index,
     next_admission_at,
     DATEDIFF('day', discharged_at, next_admission_at) AS days_to_next_admission,
-    (next_admission_at IS NOT NULL AND DATEDIFF('day', discharged_at, next_admission_at) <= 30) AS readmitted_30d
+    (next_admission_at IS NOT NULL AND DATEDIFF('day', discharged_at, next_admission_at) <= 30) AS readmitted_30d,
+    (next_admission_at IS NOT NULL AND DATEDIFF('day', discharged_at, next_admission_at) <= 30 AND next_has_chemotherapy = TRUE) AS is_planned_readmission,
+    (next_admission_at IS NOT NULL AND DATEDIFF('day', discharged_at, next_admission_at) <= 30 AND NOT next_has_chemotherapy) AS unplanned_readmitted_30d
     FROM with_next
  )
  SELECT * FROM final 
