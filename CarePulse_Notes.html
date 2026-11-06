@@ -260,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 17</span>
+    <span class="meta-pill">Sessions: 18</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45) · 0% group explained (elective / one-off stays)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45) · 0% group explained · ✓ core.procedures · planned (chemo) vs unplanned labels: 92% of readmissions were chemotherapy, unplanned rate 1.3% (6 models, 50 tests, PASS=56)</span>
   </div>
 </header>
 
@@ -592,6 +592,21 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#admission-reason-idea"><span class="dot"></span>Idea: admission_reason</a>
     <a class="dbt" href="#file-06"><span class="dot"></span>File 06</a>
     <a class="dbt" href="#session17-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session18"><span class="dot"></span>Session 18 — the label was wrong</a>
+    <a class="dbt" href="#yaml-active-disorders"><span class="dot"></span>Warm-up YAML</a>
+    <a class="dbt" href="#reason-profile"><span class="dot"></span>Profiling admission reason</a>
+    <a class="dbt" href="#reason-rate-errors"><span class="dot"></span>Rate query errors</a>
+    <a class="dbt" href="#hypothesis-method"><span class="dot"></span>Odd number → cause</a>
+    <a class="dbt" href="#self-join-gaps"><span class="dot"></span>Step A: self-join + gaps</a>
+    <a class="dbt" href="#next-reason"><span class="dot"></span>Step B: why they came back</a>
+    <a class="dbt" href="#chemo-proof"><span class="dot"></span>Proof: procedures</a>
+    <a class="dbt" href="#core-procedures"><span class="dot"></span>core.procedures</a>
+    <a class="dbt" href="#planned-design"><span class="dot"></span>Defining planned</a>
+    <a class="dbt" href="#planned-model"><span class="dot"></span>The model change</a>
+    <a class="dbt" href="#new-label-counts"><span class="dot"></span>New label counts</a>
+    <a class="dbt" href="#split-test"><span class="dot"></span>Split test</a>
+    <a class="dbt" href="#session18-errors"><span class="dot"></span>Tooling errors</a>
+    <a class="dbt" href="#session18-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -4868,6 +4883,252 @@ LIMIT 10;</code></pre></div>
           <tr><td>Singular test</td><td>Recount active disorders independently and compare</td></tr>
           <tr><td>New feature</td><td><code>admission_reason</code> from <code>encounters.reason_description</code></td></tr>
           <tr><td>Later</td><td>Medication counts; <code>connections.toml</code> for the new account; PR #2; <code>dbt docs</code>; CI</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session18">
+      <div class="session-head">
+        <h2>Session 18 — The Label Was Wrong: 92% of Readmissions Were Scheduled Chemotherapy</h2>
+        <span class="date">Oct 30 – Nov 5, 2026</span>
+      </div>
+
+      <div class="topic decision" id="yaml-active-disorders">
+        <h3><span class="tag decision">Verified</span> Warm-up: test + description for <code>episode_features</code></h3>
+        <table>
+          <tr><th>Change</th><th>Result</th></tr>
+          <tr><td><code>not_null</code> on <code>active_disorders_at_discharge</code></td><td>Predicted 41 tests / PASS=46 → exactly that ✓ (commit 1f4ba3a)</td></tr>
+          <tr><td>Description</td><td>"One row per eligible inpatient episode with the 30-day readmission label and point-in-time features."</td></tr>
+        </table>
+        <div class="why"><b>YAML trap:</b> a multi-line description in quotes broke because the quote closed early and the next lines started at column 0 (read as new keys — <code>Features:</code> even ends in a colon). Fix: one line in quotes, or <code>description: &gt;</code> with every line indented.</div>
+      </div>
+
+      <div class="topic decision" id="reason-profile">
+        <h3><span class="tag decision">Findings</span> Profiling <code>admission_reason</code> — and what it exposed</h3>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Join episode → admitting encounter (patient + <code>start_ts = admitted_at</code> + inpatient)</td><td><code>COUNT(DISTINCT episode_id)</code> = <code>COUNT(*)</code> = 51,925 → exactly one-to-one ✓</td></tr>
+          <tr><td>Distinct <code>reason_description</code></td><td>40 values, 5 NULL</td></tr>
+          <tr><td>Top 6 reasons</td><td>37,684 episodes = 72.6%</td></tr>
+          <tr><td>Reasons under 50 episodes</td><td>9 (incl. NULL) — rates on 2–4 episodes (50%, 25%) are noise</td></tr>
+          <tr><td>Rate range</td><td>0% → <b>87.9%</b></td></tr>
+        </table>
+        <table>
+          <tr><th>Reason</th><th>Episodes</th><th>Readmitted</th><th>Rate</th></tr>
+          <tr><td>Non-small cell lung cancer</td><td>16,106</td><td>4,918</td><td>30.5%</td></tr>
+          <tr><td>Small cell lung cancer</td><td>3,192</td><td>2,805</td><td><b>87.9%</b></td></tr>
+          <tr><td colspan="2"><b>Two rows' share of all 8,444 readmissions</b></td><td colspan="2"><b>7,723 = 91.5%</b></td></tr>
+        </table>
+        <div class="why"><b>Matched rows vs distinct:</b> <code>COUNT(*)</code> after a join counts rows; <code>COUNT(DISTINCT key)</code> counts entities. Equal → no loss, no fan-out. One episode lost + one duplicated can still give the "right" total by accident — check both.</div>
+      </div>
+
+      <div class="topic error" id="reason-rate-errors">
+        <h3><span class="tag error">Errors</span> The rate-by-reason query</h3>
+        <table>
+          <tr><th>Written</th><th>Problem → fix</th></tr>
+          <tr><td><code>core.encounter</code></td><td>Table is <code>encounters</code></td></tr>
+          <tr><td><code>episodes_id</code></td><td>"invalid identifier" = a name that doesn't exist → <code>episode_id</code></td></tr>
+          <tr><td><code>READMITTED</code></td><td>Column is <code>readmitted_30d</code></td></tr>
+          <tr><td><code>SELECT episode_id, readmitted_30d … GROUP BY reason_description</code></td><td>After GROUP BY, SELECT may hold only the group column + aggregates</td></tr>
+          <tr><td><code>readmitted_30d / episode_id</code></td><td>Boolean ÷ ID string is meaningless. Rate = <code>COUNT_IF(readmitted_30d) * 100 / COUNT(*)</code> per group</td></tr>
+          <tr><td><code>ORDER BY episode_id</code></td><td>Sorts by an ID string → <code>ORDER BY episodes DESC</code></td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="hypothesis-method">
+        <h3><span class="tag decision">Method</span> From an odd number to a proven cause</h3>
+        <table>
+          <tr><th>Step</th><th>Question</th><th>Here</th></tr>
+          <tr><td>1</td><td>Spot the odd thing</td><td>2 of 40 reasons hold 91% of positives; one has 88% (real-world ~15–20%)</td></tr>
+          <tr><td>2</td><td>What do they share?</td><td>Lung cancer — treated over months</td></tr>
+          <tr><td>3</td><td>Domain knowledge (or read the rows / the Synthea module)</td><td>Chemo is given in cycles every few weeks</td></tr>
+          <tr><td>4</td><td>Turn it into predictions</td><td>Next stay = same cancer; gaps regular</td></tr>
+          <tr><td>5</td><td>Test</td><td>Steps A, B and the procedures query below</td></tr>
+        </table>
+        <div class="why">Same move as Session 17: an extreme number (0% then, 88% now) is a question. Profile the group, then look at the actual rows.</div>
+      </div>
+
+      <div class="topic decision" id="self-join-gaps">
+        <h3><span class="tag decision">Verified</span> Step A — self-join to the next episode</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>FROM carepulse_db.core.inpatient_episodes e1
+JOIN carepulse_db.core.inpatient_episodes e2
+  ON  e2.patient_id     = e1.patient_id
+  AND e2.episode_number = e1.episode_number + 1     -- "the next stay"
+WHERE e1.is_eligible_index AND e1.readmitted_30d</code></pre></div>
+        <table>
+          <tr><th>Gap (days)</th><th>Readmissions</th><th>Share</th></tr>
+          <tr><td>1–20</td><td>638</td><td>8%</td></tr>
+          <tr><td>21–27</td><td>2,743</td><td>32%</td></tr>
+          <tr><td><b>28–30</b></td><td><b>5,083</b></td><td><b>60%</b></td></tr>
+        </table>
+        <div class="why">Pairs = 8,444 ✓ (one next stay per readmission), max gap 30 ✓. Unplanned returns would spread out and lean early; these pile up at the end of the window — a <b>schedule</b>. Also: many labels sit on the 30-day edge (a 31-day cycle = "not readmitted").
+        <b>Notes:</b> <code>'TRUE'</code> in quotes is a string — write <code>WHERE e1.readmitted_30d</code>; <code>SELECT *</code> on a self-join duplicates every column name; <code>days_to_next_admission</code> was already in CORE — no need to recompute.</div>
+      </div>
+
+      <div class="topic decision" id="next-reason">
+        <h3><span class="tag decision">Verified</span> Step B — why did they come back?</h3>
+        <p>Joined <code>core.encounters</code> twice: <code>en1</code> starts e1, <code>en2</code> starts e2 (same 3 conditions each).</p>
+        <table>
+          <tr><th>Came in for</th><th>Came back for</th><th>Readmissions</th><th>Avg gap</th></tr>
+          <tr><td>Non-small cell lung cancer</td><td>same</td><td>4,842</td><td>29.2</td></tr>
+          <tr><td>Small cell lung cancer</td><td>same</td><td>2,797</td><td>24.5</td></tr>
+          <tr><td>Aortic valve regurgitation / stenosis</td><td>History of aortic valve replacement</td><td>96</td><td>2.5–2.9 (staged surgery)</td></tr>
+          <tr><td>Chronic heart failure</td><td>same</td><td>112</td><td>14.9 (the kind worth predicting)</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="chemo-proof">
+        <h3><span class="tag decision">Proven</span> The procedures in those readmission stays</h3>
+        <p>Added <code>JOIN raw.procedures p ON p.encounter = en2.encounter_id</code>, filtered <code>en1.reason_description LIKE '%lung%'</code>, counted <code>COUNT(DISTINCT en2.encounter_id)</code> per procedure (one stay has many procedures).</p>
+        <table>
+          <tr><th>Procedure</th><th>Stays</th></tr>
+          <tr><td><b>Combined chemotherapy and radiation therapy</b></td><td><b>7,639 — every one</b></td></tr>
+          <tr><td>Hearing examination (some chemo drugs affect hearing)</td><td>4,935</td></tr>
+          <tr><td>High-resolution CT of chest (tumour response)</td><td>3,430</td></tr>
+        </table>
+        <div class="why"><b>Conclusion:</b> the label <code>readmitted_30d</code> was mostly scheduled chemotherapy cycles — planned, not failures of care. CMS readmission measures exclude planned readmissions for this reason. Not leakage — a <b>label definition</b> problem.</div>
+      </div>
+
+      <div class="topic decision" id="core-procedures">
+        <h3><span class="tag decision">Verified</span> <code>core.procedures</code> — SUCCESS 9,388,622</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>SELECT
+    "START" AS start_ts,            -- TIMESTAMP here (conditions had DATE)
+    "STOP"  AS stop_ts,
+    patient AS patient_id,
+    encounter AS encounter_id,
+    system AS code_system,
+    code AS procedure_code,
+    description, base_cost,
+    reasoncode AS reason_code,
+    reasondescription AS reason_description,
+    description ILIKE '%chemotherapy%' AS is_chemotherapy
+FROM {{ source('raw', 'procedures') }}</code></pre></div>
+        <table>
+          <tr><th>Flagged description</th><th>Rows</th></tr>
+          <tr><td>Combined chemotherapy and radiation therapy</td><td>118,538</td></tr>
+          <tr><td><b>C</b>hemotherapy (procedure)</td><td>2,432 — <b>plain LIKE would have missed it</b></td></tr>
+          <tr><td>Pre-operative chemotherapy</td><td>121</td></tr>
+          <tr><td>All other 423 descriptions</td><td>0</td></tr>
+        </table>
+        <div class="why">Tests: patient_id, encounter_id (not_null + relationships), procedure_code, is_chemotherapy → 47 tests, PASS=53 (commit 54eae8a). The relationships test to encounters proves no orphan encounter IDs.
+        Copy-paste leftovers caught in review: <code>condition_code</code>, <code>start_date</code>. Still open: radiotherapy, dialysis are also scheduled treatments.</div>
+      </div>
+
+      <div class="topic decision" id="planned-design">
+        <h3><span class="tag decision">Decision</span> Defining a planned readmission</h3>
+        <table>
+          <tr><th>Question</th><th>Decision</th><th>Why</th></tr>
+          <tr><td>Rule</td><td>Next stay contains a chemotherapy procedure</td><td>Evidence of what was done. "Same reason as before" would wrongly call heart failure → heart failure planned</td></tr>
+          <tr><td>Which episode holds the chemo?</td><td><b>Episode 2</b> (the next one)</td><td>We judge why they came back. Chemo → infection is unplanned even though episode 1 had chemo (my first answer was episode 1 — wrong)</td></tr>
+          <tr><td>Which encounter of that episode?</td><td><b>Any</b>, by time window: <code>p.start_ts BETWEEN admitted_at AND discharged_at</code></td><td>An episode can merge several encounters; chemo may not be in the latest one</td></tr>
+          <tr><td>Delete or flag?</td><td>Flag — keep <code>readmitted_30d</code>, add two columns</td><td>Medallion rule: CORE keeps everything and flags</td></tr>
+        </table>
+      </div>
+
+      <div class="topic decision" id="planned-model">
+        <h3><span class="tag decision">Verified</span> <code>inpatient_episodes</code> — reusing two patterns already in the model</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>with_chemo AS (                     -- same shape as with_hospice
+    SELECT h.*,
+    EXISTS (
+        SELECT 1 FROM {{ ref('procedures') }} p
+        WHERE p.patient_id = h.patient_id          -- p = procedure, h = episode
+          AND p.is_chemotherapy
+          AND p.start_ts BETWEEN h.admitted_at AND h.discharged_at
+    ) AS has_chemotherapy
+    FROM with_hospice h
+),
+-- with_next: LEAD(has_chemotherapy) OVER (PARTITION BY patient_id ORDER BY admitted_at) AS next_has_chemotherapy
+-- final:
+--   (&lt;readmitted expr&gt; AND next_has_chemotherapy)     AS is_planned_readmission
+--   (&lt;readmitted expr&gt; AND NOT next_has_chemotherapy) AS unplanned_readmitted_30d</code></pre></div>
+        <table>
+          <tr><th>Draft</th><th>Problem → fix</th></tr>
+          <tr><td><code>SELECT h.* … FROM with_death d</code></td><td>Mixed aliases; also dropped <code>discharged_to_hospice</code> → <code>FROM with_hospice h</code></td></tr>
+          <tr><td><code>h.is_chemotherapy</code>, <code>h.start_ts</code>, <code>d.admitted_at</code></td><td>Inner table columns get <code>p.</code>, outer row gets <code>h.</code></td></tr>
+          <tr><td><code>FROM with_chemot</code></td><td>Typo</td></tr>
+          <tr><td>New column names listed in <code>final</code> with no expression</td><td>New columns need expressions</td></tr>
+          <tr><td><code>&gt; 30 AND NOT is_planned_readmission</code></td><td>Unplanned is still within 30 days → <code>&lt;= 30</code>; and no alias reuse → <code>NOT next_has_chemotherapy</code></td></tr>
+        </table>
+        <div class="why"><b>NULL check:</b> on a patient's last episode <code>LEAD</code> gives NULL, but readmitted is FALSE there, and <code>FALSE AND NULL = FALSE</code> → both new columns are never NULL. Build ran in 3.8 s despite 9.4M procedures.</div>
+      </div>
+
+      <div class="topic decision" id="new-label-counts">
+        <h3><span class="tag decision">Findings</span> The new label (eligible episodes)</h3>
+        <table>
+          <tr><th>Label</th><th>Count</th><th>Rate of 51,925</th></tr>
+          <tr><td><code>readmitted_30d</code></td><td>8,444</td><td>16.3%</td></tr>
+          <tr><td><code>is_planned_readmission</code></td><td>7,752</td><td>14.9%</td></tr>
+          <tr><td><code>unplanned_readmitted_30d</code></td><td><b>692</b></td><td><b>1.3%</b></td></tr>
+        </table>
+        <div class="why">First run showed 8,445 — the query had no <code>WHERE is_eligible_index</code> (one ineligible episode). 692 positives in 52k rows = heavy <b>class imbalance</b> for the ML phase (weights, and a metric that isn't accuracy).</div>
+      </div>
+
+      <div class="topic decision" id="split-test">
+        <h3><span class="tag decision">Verified</span> Tests guarding the split — PASS=56</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>-- tests/episodes_planned_unplanned_split.sql
+SELECT episode_id, readmitted_30d, is_planned_readmission, unplanned_readmitted_30d
+FROM {{ ref('inpatient_episodes') }}
+WHERE (readmitted_30d &lt;&gt; (is_planned_readmission OR unplanned_readmitted_30d))   -- neither
+   OR (is_planned_readmission AND unplanned_readmitted_30d)                      -- both</code></pre></div>
+        <table>
+          <tr><th>readmitted</th><th>planned</th><th>unplanned</th><th>Caught by</th></tr>
+          <tr><td>TRUE</td><td>FALSE</td><td>FALSE</td><td>condition 1 (neither)</td></tr>
+          <tr><td>TRUE</td><td>TRUE</td><td>TRUE</td><td>condition 2 (both) — OR alone can't tell one from two</td></tr>
+        </table>
+        <div class="why">Return the broken rows, not a COUNT + HAVING — a failure then shows which episodes. Plus <code>not_null</code> on both new columns → 50 tests, 6 models, PASS=56 (commit 24719d8).</div>
+      </div>
+
+      <div class="topic error" id="session18-errors">
+        <h3><span class="tag error">Errors</span> Tooling</h3>
+        <table>
+          <tr><th>What happened</th><th>Lesson</th></tr>
+          <tr><td>"dbt not recognized" — <code>(.venv)</code> again</td><td>The terminal's first line shows VS Code auto-activating <code>.venv</code>. Fix once: Python: Select Interpreter → <code>C:\dev\venv-dbt\Scripts\python.exe</code></td></tr>
+          <tr><td><code>New-Item tests\core\…</code> failed</td><td>Folder didn't exist — CORE tests live directly in <code>tests\</code>. <code>Get-ChildItem tests -Recurse</code> first</td></tr>
+          <tr><td>Found 50 tests, ran 49 (PASS=55)</td><td>The new test file was empty (never saved). "Found N vs ran N" catches it again</td></tr>
+          <tr><td><code>git status</code> showed <code>conditions.sql</code> and a feature test modified</td><td><code>git diff</code>: only a trailing blank line / newline at end of file → <code>git restore</code>. Never commit changes you can't explain</td></tr>
+        </table>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Tell me about a time the data was technically correct but the answer was wrong.</p>
+        <p class="a">In CarePulse the 30-day readmission rate was 16%, which looked plausible. Profiling by admission reason
+        showed two lung cancer reasons held 91% of readmissions, one at 88%. I self-joined each episode to the next one: the
+        patients came back for the same cancer, and 60% of the gaps were 28–30 days — a schedule, not deterioration. Joining
+        the readmission stays to procedures showed every one contained chemotherapy. So 92% of the label was planned treatment.
+        I kept the original column, added a planned flag and an unplanned label, and the real unplanned rate is 1.3%. A model
+        trained on the old label would have learned "lung cancer means readmitted" and looked excellent while being useless.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How did you decide which records count as "planned"?</p>
+        <p class="a">On evidence of what happened in the next stay: a chemotherapy procedure anywhere between its admission and
+        discharge. I judged the return visit, not the first one — chemo followed by an infection is unplanned. Matching on
+        "same reason as last time" would have mislabelled heart failure patients who got worse. I also matched by time window,
+        not the latest encounter, because one stay can merge several encounters. It mirrors how CMS excludes planned
+        readmissions, though radiotherapy and dialysis are candidates I haven't added yet.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">How do you test that two flags split a population correctly?</p>
+        <p class="a">A singular dbt test that returns rows breaking "exactly one": readmitted but neither flag, or both flags at
+        once. An OR alone can't detect the second case. The current logic can't produce it, but the test protects against a
+        future edit, and it returns the broken episode IDs so a failure is actionable.</p>
+      </div>
+
+      <div class="topic error" id="session18-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Label in features</td><td>Carry <code>unplanned_readmitted_30d</code> into <code>episode_features</code> + <code>not_null</code></td></tr>
+          <tr><td>Re-check signals</td><td>Rate by bucket for each feature against the new label — the old signals were mostly chemo</td></tr>
+          <tr><td>Planned rule</td><td>Decide on radiotherapy / dialysis as planned too</td></tr>
+          <tr><td><code>admission_reason</code></td><td>Group the 40 values (rare → 'Other', NULL → 'Unknown') before it becomes a feature</td></tr>
+          <tr><td>ML phase</td><td>Class imbalance (692 positives): class weights, precision/recall or PR-AUC, not accuracy</td></tr>
+          <tr><td>Git</td><td>Save the investigation queries as <code>snowflake/07_…</code>; PR #2; <code>dbt docs</code>; CI</td></tr>
         </table>
       </div>
 
