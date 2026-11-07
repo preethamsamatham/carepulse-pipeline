@@ -1,7 +1,7 @@
 version: 2
 models:
 - name: "episode_features"
-  description: "One row per eligible inpatient episode with the 30-day readmission label and point-in-time features."
+  description: "One row per eligible inpatient episode with point-in-time features. unplanned_readmitted_30d is the model label; readmitted_30d (includes scheduled chemotherapy) is kept for comparison only. Never use either label as a feature."
   columns:
     - name: "episode_id"
       data_tests:
@@ -28,7 +28,10 @@ models:
         - not_null 
     - name: "readmitted_30d"
       data_tests:
-        - not_null    
+        - not_null  
+    - name: "unplanned_readmitted_30d"
+      data_tests:
+        - not_null      
     - name: "prior_episodes_365d"
       data_tests:
         - not_null       

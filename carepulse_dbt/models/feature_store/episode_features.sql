@@ -6,6 +6,7 @@ WITH episode AS (
         discharged_at,
         stay_in_episode,
         readmitted_30d,
+        unplanned_readmitted_30d,
         episode_number
       FROM {{ ref('inpatient_episodes') }}
       WHERE is_eligible_index = TRUE
@@ -18,6 +19,7 @@ with_features AS(
         e.discharged_at,
         e.stay_in_episode,
         e.readmitted_30d,
+        e.unplanned_readmitted_30d,
         p.gender,
         DATEDIFF(year, p.birth_date, e.admitted_at::DATE) 
         - IFF(TO_VARCHAR(e.admitted_at::DATE, 'MM-DD') < TO_VARCHAR(p.birth_date, 'MM-DD'), 1, 0) AS age_at_admission,
@@ -57,6 +59,7 @@ with_conditions AS (
         e.discharged_at,
         e.stay_in_episode,
         e.readmitted_30d,
+        e.unplanned_readmitted_30d,
         e.gender,
         e.age_at_admission,
         e.length_of_stay_days,
