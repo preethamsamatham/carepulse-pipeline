@@ -10,6 +10,7 @@
 --   4. Proof  — procedures performed in those readmission stays
 --   5. core.procedures — the is_chemotherapy flag
 --   6. The new labels in CORE and FEATURE_STORE
+--   7. Signal re-check: old vs unplanned label per feature (Session 19)
 --
 -- Read-only. Results recorded in comments are from Oct 30 – Nov 6, 2026.
 -- Queries already saved in 06_validate_core_conditions.sql are not repeated.
@@ -225,3 +226,103 @@ SELECT COUNT(*)                            AS episodes,
        COUNT_IF(readmitted_30d)            AS readmitted,
        COUNT_IF(unplanned_readmitted_30d)  AS unplanned
 FROM carepulse_db.feature_store.episode_features;
+
+
+-- =============================================================================
+-- 7. Signal re-check — old label vs unplanned label, side by side (Session 19)
+-- Correct GROUP BY = the bucket only. A column used inside COUNT_IF must NOT
+-- also be in GROUP BY (that splits each bucket by label → every rate 0 or 100).
+-- Reconcile every table: episodes sum to 51,925, unplanned sum to 692.
+-- =============================================================================
+
+-- 7.1 prior_episodes_365d — the "best" old feature was a chemo detector.
+--     Result:  bucket  episodes  old%   unplanned  unplanned%
+--              0        30,160    2.3     514        1.7
+--              1         3,176   10.0      94        3.0
+--              2           824   30.0      14        1.7
+--              3+       17,765   40.4      70        0.4   ← lowest now
+SELECT CASE WHEN prior_episodes_365d = 0 THEN '0'
+            WHEN prior_episodes_365d = 1 THEN '1'
+            WHEN prior_episodes_365d = 2 THEN '2'
+            ELSE '3+'
+       END                                                              AS bucket,
+       COUNT(*)                                                         AS episodes,
+       COUNT_IF(readmitted_30d)                                         AS readmitted,
+       ROUND(COUNT_IF(readmitted_30d) * 100 / COUNT(*), 1)              AS old_rate_pct,
+       COUNT_IF(unplanned_readmitted_30d)                               AS unplanned,
+       ROUND(COUNT_IF(unplanned_readmitted_30d) * 100 / COUNT(*), 1)    AS unplanned_rate_pct
+FROM carepulse_db.feature_store.episode_features
+GROUP BY bucket
+ORDER BY MIN(prior_episodes_365d);
+
+-- 7.2 active_disorders_at_discharge — weak but real signal survives.
+--     Result:  0 → 0.0 · 1-2 → 1.1 · 3-5 → 1.3 · 6-9 → 1.7 · 10-14 → 2.1
+--              15+ → 1.2 (only 35 cases — likely noise)
+SELECT CASE WHEN active_disorders_at_discharge = 0             THEN '0'
+            WHEN active_disorders_at_discharge BETWEEN 1  AND 2  THEN '1-2'
+            WHEN active_disorders_at_discharge BETWEEN 3  AND 5  THEN '3-5'
+            WHEN active_disorders_at_discharge BETWEEN 6  AND 9  THEN '6-9'
+            WHEN active_disorders_at_discharge BETWEEN 10 AND 14 THEN '10-14'
+            ELSE '15+'
+       END                                                              AS bucket,
+       COUNT(*)                                                         AS episodes,
+       COUNT_IF(readmitted_30d)                                         AS readmitted,
+       ROUND(COUNT_IF(readmitted_30d) * 100 / COUNT(*), 1)              AS old_rate_pct,
+       COUNT_IF(unplanned_readmitted_30d)                               AS unplanned,
+       ROUND(COUNT_IF(unplanned_readmitted_30d) * 100 / COUNT(*), 1)    AS unplanned_rate_pct
+FROM carepulse_db.feature_store.episode_features
+GROUP BY bucket
+ORDER BY MIN(active_disorders_at_discharge);
+
+-- 7.3 age_at_admission — strongest signal so far (65+ ≈ 10× under-40s).
+--     Result:  0-17   1,565   0.1   1   0.1
+--              18-39 11,466   0.2  18   0.2
+--              40-64 23,930  20.9 363   1.5
+--              65-100 14,882 22.9 308   2.1
+--              100+      82   2.4   2   2.4 (noise)
+SELECT CASE WHEN age_at_admission BETWEEN 0  AND 17  THEN '0-17'
+            WHEN age_at_admission BETWEEN 18 AND 39  THEN '18-39'
+            WHEN age_at_admission BETWEEN 40 AND 64  THEN '40-64'
+            WHEN age_at_admission BETWEEN 65 AND 100 THEN '65-100'
+            ELSE '100+'
+       END                                                              AS bucket,
+       COUNT(*)                                                         AS episodes,
+       COUNT_IF(readmitted_30d)                                         AS readmitted,
+       ROUND(COUNT_IF(readmitted_30d) * 100 / COUNT(*), 1)              AS old_rate_pct,
+       COUNT_IF(unplanned_readmitted_30d)                               AS unplanned,
+       ROUND(COUNT_IF(unplanned_readmitted_30d) * 100 / COUNT(*), 1)    AS unplanned_rate_pct
+FROM carepulse_db.feature_store.episode_features
+GROUP BY bucket
+ORDER BY MIN(age_at_admission);
+
+-- 7.4 Look at the rows behind a number: the single 0-17 unplanned readmission.
+--     episode_features has no episode_number → look the episode up in CORE,
+--     then self-join to the next stay.
+--     Result: boy, 11 · Aortic valve regurgitation → 6 days later →
+--             History of aortic valve replacement.
+--     → A STAGED, PLANNED operation still labelled "unplanned": the chemo-only
+--       rule misses planned heart surgery (~96 valve cases in Step B).
+SELECT f.episode_id,
+       f.age_at_admission,
+       f.gender,
+       en1.reason_description        AS first_reason,
+       f.discharged_at,
+       e2.admitted_at                AS came_back_at,
+       e1.days_to_next_admission     AS gap_days,
+       en2.reason_description        AS next_reason
+FROM carepulse_db.feature_store.episode_features f
+JOIN carepulse_db.core.inpatient_episodes e1
+  ON  e1.episode_id = f.episode_id
+JOIN carepulse_db.core.inpatient_episodes e2
+  ON  e2.patient_id     = e1.patient_id
+  AND e2.episode_number = e1.episode_number + 1
+JOIN carepulse_db.core.encounters en1
+  ON  en1.patient_id      = e1.patient_id
+  AND en1.start_ts        = e1.admitted_at
+  AND en1.encounter_class = 'inpatient'
+JOIN carepulse_db.core.encounters en2
+  ON  en2.patient_id      = e2.patient_id
+  AND en2.start_ts        = e2.admitted_at
+  AND en2.encounter_class = 'inpatient'
+WHERE f.unplanned_readmitted_30d
+  AND f.age_at_admission BETWEEN 0 AND 17;

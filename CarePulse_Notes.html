@@ -260,11 +260,11 @@ nav.toc a.dbt{color:#4F6B4A}
   <p class="sub">Hospital readmission risk pipeline — Synthea → AWS → Snowflake → ML. Every decision, error, and concept, kept for interview review. Updated at the end of each session.</p>
   <div class="meta-row">
     <span class="meta-pill">Target: SWE III — ETL/PySpark | AWS | Snowflake</span>
-    <span class="meta-pill">Sessions: 18</span>
+    <span class="meta-pill">Sessions: 19</span>
     <span class="meta-pill">Phase 0: ✓ complete</span>
     <span class="meta-pill">Phase 1: ✓ complete — deployed &amp; proven live</span>
     <span class="meta-pill">Phase 2: ✓ typed, verified &amp; PII-masked</span>
-    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45) · 0% group explained · ✓ core.procedures · planned (chemo) vs unplanned labels: 92% of readmissions were chemotherapy, unplanned rate 1.3% (6 models, 50 tests, PASS=56)</span>
+    <span class="meta-pill">Phase 3: ✓ RAW loaded · ✓ CORE in dbt (3 models, 21 tests, PASS=24) · 51,925 training episodes, 16.3% readmitted · merged to master (PR #1) · ✓ FEATURE_STORE in progress (episode_features: 8 features + label) · ✓ core.conditions · rebuilt in new Snowflake account (5 models, 40 tests, PASS=45) · 0% group explained · ✓ core.procedures · planned (chemo) vs unplanned labels: 92% of readmissions were chemotherapy, unplanned rate 1.3% · label in episode_features; signals re-checked (6 models, 51 tests)</span>
   </div>
 </header>
 
@@ -607,6 +607,14 @@ nav.toc a.dbt{color:#4F6B4A}
     <a class="dbt" href="#split-test"><span class="dot"></span>Split test</a>
     <a class="dbt" href="#session18-errors"><span class="dot"></span>Tooling errors</a>
     <a class="dbt" href="#session18-open"><span class="dot"></span>Open items</a>
+    <a class="dbt" href="#session19"><span class="dot"></span>Session 19 — which features survive</a>
+    <a class="dbt" href="#branch-unplanned"><span class="dot"></span>New branch</a>
+    <a class="dbt" href="#label-both"><span class="dot"></span>Keep both labels</a>
+    <a class="dbt" href="#signal-recheck"><span class="dot"></span>Signal re-check</a>
+    <a class="dbt" href="#session19-errors"><span class="dot"></span>GROUP BY errors</a>
+    <a class="dbt" href="#valve-case"><span class="dot"></span>The valve case</a>
+    <a class="dbt" href="#file-07"><span class="dot"></span>File 07</a>
+    <a class="dbt" href="#session19-open"><span class="dot"></span>Open items</a>
   </nav>
 
   <main>
@@ -5129,6 +5137,138 @@ WHERE (readmitted_30d &lt;&gt; (is_planned_readmission OR unplanned_readmitted_3
           <tr><td><code>admission_reason</code></td><td>Group the 40 values (rare → 'Other', NULL → 'Unknown') before it becomes a feature</td></tr>
           <tr><td>ML phase</td><td>Class imbalance (692 positives): class weights, precision/recall or PR-AUC, not accuracy</td></tr>
           <tr><td>Git</td><td>Save the investigation queries as <code>snowflake/07_…</code>; PR #2; <code>dbt docs</code>; CI</td></tr>
+        </table>
+      </div>
+
+    </section>
+
+    <section class="session dbt" id="session19">
+      <div class="session-head">
+        <h2>Session 19 — New Label in the Feature Store, and Which Features Survive It</h2>
+        <span class="date">Nov 6, 2026</span>
+      </div>
+
+      <div class="topic decision" id="branch-unplanned">
+        <h3><span class="tag decision">Git</span> A fresh branch from the merged master</h3>
+        <div class="code"><button class="copy" onclick="cp(this)">copy</button><pre><code>git checkout master
+git pull                                   # fast-forward df480ec..9df4c8b (21 commits)
+git checkout -b feature/unplanned-label
+git push -u origin feature/unplanned-label  # -u: first push of a new branch, sets tracking</code></pre></div>
+        <div class="why"><b>Why a new branch:</b> <code>feature-store-layer</code> was finished and merged. One branch per piece of work keeps each PR small and reviewable. <b>Fast-forward</b> = git only moved the pointer; nothing to combine because local master had no changes.</div>
+      </div>
+
+      <div class="topic decision" id="label-both">
+        <h3><span class="tag decision">Decision</span> Keep both labels in <code>episode_features</code></h3>
+        <table>
+          <tr><th>For</th><th>Risk</th><th>Guard</th></tr>
+          <tr><td>Compare old vs new model — shows exactly how much chemo inflated results</td><td>Two label columns side by side; using one as a feature for the other = <b>target leakage</b>; training on the wrong one</td><td>YAML description names <code>unplanned_readmitted_30d</code> as THE model label; ML phase drops both labels from the feature list</td></tr>
+        </table>
+        <table>
+          <tr><th>Where the column was added</th><th>Why</th></tr>
+          <tr><td><code>episode</code> CTE (reads inpatient_episodes)</td><td rowspan="3">Each CTE passes on only what it selects. Skip one → "invalid identifier 'E.UNPLANNED_READMITTED_30D'". <code>with_history_365</code> / <code>with_conditions</code> return only episode_id + a count — no change.</td></tr>
+          <tr><td><code>with_features</code></td></tr>
+          <tr><td>final SELECT</td></tr>
+        </table>
+        <div class="why">Predicted 51 tests; <code>dbt build --select episode_features+</code> → 1 model + 16 tests = PASS=17. Worksheet: 51,925 / 8,444 / 692 ✓ (no eligible filter needed — the table is eligible-only).</div>
+      </div>
+
+      <div class="topic decision" id="signal-recheck">
+        <h3><span class="tag decision">Findings</span> Signal re-check: old label vs unplanned label</h3>
+        <p>The question: which features predict an <b>unexpected</b> return, now that scheduled chemo is removed? Same bucket queries, two rates side by side.</p>
+        <table>
+          <tr><th>prior_episodes_365d</th><th>Episodes</th><th>Old</th><th>Unplanned</th></tr>
+          <tr><td>0</td><td>30,160</td><td>2.3%</td><td>1.7%</td></tr>
+          <tr><td>1</td><td>3,176</td><td>10.0%</td><td>3.0%</td></tr>
+          <tr><td>2</td><td>824</td><td>30.0%</td><td>1.7%</td></tr>
+          <tr><td>3+</td><td>17,765</td><td>40.4%</td><td><b>0.4%</b></td></tr>
+        </table>
+        <table>
+          <tr><th>active_disorders</th><th>0</th><th>1–2</th><th>3–5</th><th>6–9</th><th>10–14</th><th>15+</th></tr>
+          <tr><td>Old</td><td>0.0</td><td>3.0</td><td>18.6</td><td>21.8</td><td>23.1</td><td>21.3</td></tr>
+          <tr><td>Unplanned</td><td>0.0</td><td>1.1</td><td>1.3</td><td>1.7</td><td>2.1</td><td>1.2 (35 cases)</td></tr>
+        </table>
+        <table>
+          <tr><th>Age</th><th>0–17</th><th>18–39</th><th>40–64</th><th>65–100</th><th>100+</th></tr>
+          <tr><td>Episodes</td><td>1,565</td><td>11,466</td><td>23,930</td><td>14,882</td><td>82</td></tr>
+          <tr><td>Old</td><td>0.1</td><td>0.2</td><td>20.9</td><td>22.9</td><td>2.4</td></tr>
+          <tr><td>Unplanned</td><td>0.1</td><td>0.2</td><td>1.5</td><td>2.1</td><td>2.4 (2 cases)</td></tr>
+        </table>
+        <table>
+          <tr><th>Feature</th><th>Verdict for the unplanned label</th></tr>
+          <tr><td><code>prior_episodes_365d</code></td><td><b>Gone</b> — it was a chemo detector; 3+ is now the lowest bucket</td></tr>
+          <tr><td><code>active_disorders_at_discharge</code></td><td><b>Weak but real</b> — 1.1% → 2.1%</td></tr>
+          <tr><td><code>age_at_admission</code></td><td><b>Strongest so far</b> — 65+ ≈ 10× under-40s</td></tr>
+          <tr><td><code>length_of_stay_days</code></td><td>Not checked yet</td></tr>
+        </table>
+        <div class="why"><b>Reconcile every table:</b> each episode falls in exactly one bucket, so episodes must sum to 51,925 and unplanned to 692 (= 8,444 readmitted − 7,752 planned). Less → rows fell through the CASE; more → double-counted.
+        <b>Caution:</b> buckets now hold 35–363 positives, not thousands — single-bucket wiggles can be noise. With 692 positives the model needs several features together.</div>
+      </div>
+
+      <div class="topic error" id="session19-errors">
+        <h3><span class="tag error">Errors</span> GROUP BY, again — two new forms</h3>
+        <table>
+          <tr><th>Written</th><th>What happened → fix</th></tr>
+          <tr><td><code>SELECT … episode_id … GROUP BY bucket, episode_id, …</code></td><td>51,925 rows — one group per episode. Remove episode_id; <code>GROUP BY bucket</code></td></tr>
+          <tr><td><code>GROUP BY bucket, readmitted_30d, unplanned_readmitted_30d</code></td><td>Every rate 0.0% or 100.0% — each bucket split by its own label. <b>A column used inside COUNT_IF must not be in GROUP BY.</b></td></tr>
+          <tr><td>Two output columns both named <code>READMITTED</code></td><td>Alias the second <code>unplanned</code>; same-named columns confuse readers and some tools reject them</td></tr>
+          <tr><td>"dbt not recognized" (5th time)</td><td>New terminal opened without venv-dbt. Permanent fix: Python: Select Interpreter → <code>C:\dev\venv-dbt\Scripts\python.exe</code></td></tr>
+        </table>
+      </div>
+
+      <div class="topic error" id="valve-case">
+        <h3><span class="tag error">Investigation</span> The one 0–17 "unplanned" readmission — and the next gap in the label</h3>
+        <table>
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>Patient</td><td>Boy, 11</td></tr>
+          <tr><td>First stay</td><td>Aortic valve regurgitation, discharged 2016-07-18</td></tr>
+          <tr><td>Came back</td><td>6 days later — History of aortic valve replacement</td></tr>
+        </table>
+        <div class="why"><b>Finding:</b> a <b>staged, planned operation</b> still counted as unplanned. The chemo-only rule misses planned heart surgery — Step B already showed ~96 valve cases (2–3 day gaps). Could be ~14% of the 692. Real planned-readmission measures use a <b>list</b> of procedures (some always planned, some potentially planned), not one.
+        <b>Query lesson:</b> <code>episode_features</code> has no <code>episode_number</code>, so look the episode up in CORE by <code>episode_id</code>, then self-join to the next stay.</div>
+      </div>
+
+      <div class="topic decision" id="file-07">
+        <h3><span class="tag decision">Git</span> <code>snowflake/07_investigate_planned_readmissions.sql</code></h3>
+        <p>Sessions 18–19 worksheet, formatted: admission reason → Step A gaps → Step B reasons → procedures proof → is_chemotherapy checks → new labels → section 7, the signal re-checks and the valve case. Queries already in 06 not repeated; <code>SELECT *</code> replaced by aggregates.</p>
+        <table>
+          <tr><th>Commit</th><th>What</th></tr>
+          <tr><td>1</td><td>Add unplanned_readmitted_30d label to episode_features (model + YAML)</td></tr>
+          <tr><td>2</td><td>Add 07: planned readmission investigation queries</td></tr>
+          <tr><td>3</td><td>07 section 7 + notes Session 19</td></tr>
+        </table>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">After you fixed the label, what happened to your features?</p>
+        <p class="a">I re-ran the readmission rate by bucket for each feature against both labels. My best feature, prior admissions
+        in the last year, went from 2% to 40% under the old label — but under the unplanned label it was flat, and the heaviest
+        users became the lowest-risk group, because their returns were scheduled chemotherapy. It had been a chemo detector.
+        Age kept a strong signal — patients over 65 came back unexpectedly about ten times as often as those under 40 — and
+        chronic disease count kept a weaker one. Fixing the label changed which features matter, which is why I check
+        features against the label I'll actually train on.</p>
+      </div>
+
+      <div class="iq">
+        <div class="iq-label">Interview Question</div>
+        <p class="q">Your bucket query returns only 0% and 100% rates. What's wrong?</p>
+        <p class="a">The label is in the GROUP BY. Grouping by the column I'm counting splits every bucket into a "true" group
+        and a "false" group, so each group's rate is trivially 0 or 100. GROUP BY should hold only the bucket; the label belongs
+        inside the aggregate. I also reconcile: bucket counts should add up to the table total and the positives to the known
+        label count.</p>
+      </div>
+
+      <div class="topic error" id="session19-open">
+        <h3><span class="tag error">Open items</span> Carried forward</h3>
+        <table>
+          <tr><th>Item</th><th>Next action</th></tr>
+          <tr><td>Planned list</td><td>Measure: of 692 unplanned, how many next stays contain a valve replacement (procedures LIKE '%valve%')? Then decide the planned list: chemo + valve surgery? radiotherapy, dialysis, transplant?</td></tr>
+          <tr><td>Cohort</td><td>17,765 index episodes (34%) are mostly chemo-cycle stays — should they be excluded from training, as readmission measures exclude some index admissions?</td></tr>
+          <tr><td>Signal check</td><td><code>length_of_stay_days</code> against both labels</td></tr>
+          <tr><td>Feature</td><td><code>admission_reason</code> (40 values → grouped) — likely strong now</td></tr>
+          <tr><td>Git</td><td>Open PR for <code>feature/unplanned-label</code> when the label work is done</td></tr>
+          <tr><td>ML phase</td><td>692 positives / 51,925 = 1.3% → class weights, PR-AUC not accuracy</td></tr>
+          <tr><td>Later</td><td>Update the out-of-date architecture diagram; mask/merge the Spotify repo's old design doc on main</td></tr>
         </table>
       </div>
 
